@@ -1,0 +1,86 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Відділ (зв'язок з користувачами)
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  users     User[]
+}
+
+// 2. Користувач (ролі: співробітник, офіс-менеджер, адміністратор)
+model User {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         String     @default("employee") // employee, office_manager, admin
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  bookings     Booking[]
+  participations BookingParticipant[]
+}
+
+// 3. Обладнання
+model Equipment {
+  id    Int     @id @default(autoincrement())
+  name  String  @unique
+  rooms RoomEquipment[]
+}
+
+// 4. Кімната (зв'язок М:М з обладнанням)
+model Room {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  capacity    Int
+  isBlocked   Boolean         @default(false) // блокування на прибирання чи ремонт
+  equipment   RoomEquipment[]
+  bookings    Booking[]
+}
+
+// Проміжна таблиця для зв'язку М:М: Кімната ↔ Обладнання
+model RoomEquipment {
+  roomId      Int
+  equipmentId Int
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, equipmentId])
+}
+
+// 5. Бронювання (зв'язком з повторюваними серіями)
+model Booking {
+  id            Int      @id @default(autoincrement())
+  title         String   // тема зустрічі
+  startTime     DateTime
+  endTime       DateTime
+  isRecurring   Boolean  @default(false) // ознака повторюваного бронювання
+  seriesId      String?  // ідентифікатор серії для повторюваних бронювань
+
+  roomId        Int
+  room          Room     @relation(fields: [roomId], references: [id])
+
+  userId        Int      // хто створив броню
+  user          User     @relation(fields: [userId], references: [id])
+
+  participants  BookingParticipant[]
+
+  @@index([roomId, startTime, endTime]) // індекс для швидкої перевірки перетину часу
+}
+
+// Проміжна таблиця для зв'язку М:М: Бронювання ↔ Учасник (співробітник)
+model BookingParticipant {
+  bookingId Int
+  userId    Int
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([bookingId, userId])
+}
