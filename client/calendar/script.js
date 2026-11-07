@@ -3,6 +3,23 @@ const daysContainer = document.getElementById('days-container');
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
 
+document.addEventListener('DOMContentLoaded', () => 
+{
+    const token = localStorage.getItem('token');
+
+    if (!token) 
+    {
+        window.location.href = '/auth/';
+        return;
+    }
+});
+
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/auth/';
+}
+
 const months = [
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
