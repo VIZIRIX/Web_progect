@@ -6,9 +6,11 @@ const nextBtn = document.getElementById('next-btn');
 document.addEventListener('DOMContentLoaded', () => 
 {
     const token = localStorage.getItem('token');
+    console.log("Найденный токен в localStorage:", token);
 
     if (!token) 
     {
+        console.warn("Токен отсутствует! Срабатывает редирект на /auth/");
         window.location.href = '/auth/';
         return;
     }
