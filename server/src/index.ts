@@ -1,11 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
+import bookingRoutes from './routes/booking.routes.js';
 import { logger } from './utils/logger.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,7 +11,9 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(cors());
 
+// Подключаем группы маршрутов
 app.use('/api', authRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 app.get('/api/health', (req, res) => {
     logger.info('Health check endpoint accessed');
