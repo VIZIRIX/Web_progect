@@ -18,8 +18,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: server/Dockerfile
+      context: ./server
+      dockerfile: Dockerfile
     container_name: web_project_backend
     ports:
       - "5000:5000"
@@ -28,20 +28,22 @@ services:
       PORT: 5000
       JWT_SECRET: your_super_secret_key_here
     volumes:
-      - ./server:/app/server
+      - ./server:/app
+      - /app/node_modules
     depends_on:
       postgres-db:
         condition: service_healthy
 
   frontend:
     build:
-      context: .
-      dockerfile: client/Dockerfile
+      context: ./client
+      dockerfile: Dockerfile
     container_name: web_project_frontend
     ports:
       - "5173:5173"
     volumes:
-      - ./client:/app/client
+      - ./client:/app
+      - /app/node_modules
     depends_on:
       - backend
 

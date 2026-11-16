@@ -89,3 +89,131 @@ body {
 .day.empty {
     cursor: default;
 }
+.calendar-status {
+    text-align: center;
+    padding: 12px;
+    font-size: 14px;
+    color: #555;
+    background-color: #f8faff;
+}
+
+.day {
+    position: relative;
+}
+
+.day.has-bookings {
+    background-color: #e2eefd;
+    color: #245fa6;
+    font-weight: bold;
+}
+
+.day .booking-count {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 2px;
+    border-radius: 50%;
+    background-color: #4A90E2;
+    color: white;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.day.today.has-bookings {
+    background-color: #4A90E2;
+    color: white;
+}
+
+.calendar-status {
+    text-align: center;
+    padding: 12px;
+    font-size: 14px;
+    color: #555;
+    background-color: #f8faff;
+}
+
+.day {
+    position: relative;
+}
+
+.day.has-bookings {
+    background-color: #e2eefd;
+    color: #245fa6;
+    font-weight: bold;
+}
+
+.day .booking-count {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 2px;
+    border-radius: 50%;
+    background-color: #4A90E2;
+    color: white;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.day.today.has-bookings {
+    background-color: #4A90E2;
+    color: white;
+}
+
+.bookings-list {
+    padding: 20px;
+    border-top: 1px solid #ddd;
+}
+
+.bookings-list h2 {
+    font-size: 20px;
+    margin-top: 0;
+    color: #333;
+}
+
+.booking-card {
+    background-color: #f5f8fc;
+    border-left: 4px solid #4A90E2;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.booking-card h3 {
+    margin: 0 0 10px;
+    font-size: 16px;
+    color: #333;
+}
+
+.booking-card p {
+    margin: 5px 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.booking-page-button {
+    display: block;
+    width: fit-content;
+    margin: 0 auto 15px;
+    padding: 10px 18px;
+    background-color: #4A90E2;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.booking-page-button:hover {
+    background-color: #357ABD;
+}
