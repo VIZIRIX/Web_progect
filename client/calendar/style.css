@@ -217,3 +217,27 @@ body {
 .booking-page-button:hover {
     background-color: #357ABD;
 }
+
+.cancel-booking-button {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.cancel-booking-button:hover {
+    background-color: #b02a37;
+}
+
+.cancel-booking-button:disabled {
+    background-color: #999;
+    cursor: not-allowed;
+}

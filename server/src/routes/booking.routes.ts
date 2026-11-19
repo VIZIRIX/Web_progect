@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '../middleware/auth.middleware.js';
+import { verifyToken, USER_ROLES } from '../middleware/auth.middleware.js';
 
 const router: Router = Router();
 const prisma = new PrismaClient();
@@ -206,3 +206,75 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
 });
 
 export default router;
+
+router.delete('/:id', verifyToken, async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
+    const bookingId = Number(req.params.id);
+
+    // Проверяем авторизацию и ID
+    if (!userId) {
+        return res.status(401).json({
+            error: 'User is not authorized'
+        });
+    }
+
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+        return res.status(400).json({
+            error: 'Invalid booking ID'
+        });
+    }
+
+    try {
+        // Ищем бронирование
+        const booking = await prisma.booking.findUnique({
+            where: { id: bookingId }
+        });
+
+        if (!booking) {
+            return res.status(404).json({
+                error: 'Booking not found'
+            });
+        }
+
+        // Проверяем права пользователя
+        const isManager =
+            userRole === USER_ROLES.OFFICE_MANAGER ||
+            userRole === USER_ROLES.ADMIN;
+
+        if (!isManager && userRole !== USER_ROLES.EMPLOYEE) {
+            return res.status(403).json({
+                error: 'Insufficient permissions'
+            });
+        }
+
+        if (!isManager && booking.userId !== userId) {
+            return res.status(403).json({
+                error: 'You can only cancel your own bookings'
+            });
+        }
+
+        // Удаляем участников и бронирование в одной транзакции
+        await prisma.$transaction(async (tx) => {
+            await tx.bookingParticipant.deleteMany({
+                where: { bookingId }
+            });
+
+            await tx.booking.delete({
+                where: { id: bookingId }
+            });
+        });
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Booking successfully cancelled'
+        });
+
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+});

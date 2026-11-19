@@ -7,6 +7,17 @@ const calendarHeader = document.querySelector('.calendar-header');
 
 const token = localStorage.getItem('token');
 
+let currentUser = null;
+
+try {
+    currentUser = JSON.parse(localStorage.getItem('user'));
+} catch (error) {
+    console.error('Не удалось прочитать данные пользователя:', error);
+}
+
+const currentUserId = Number(currentUser?.id ?? currentUser?.userId);
+const currentUserRole = currentUser?.role;
+
 if (!token) {
     window.location.href = '/';
 }
@@ -167,12 +178,75 @@ function showDayBookings(dayKey) {
         const organizer = document.createElement('p');
         organizer.textContent = `Организатор: ${booking.user.name}`;
 
-        card.appendChild(title);
-        card.appendChild(time);
-        card.appendChild(room);
-        card.appendChild(organizer);
+card.appendChild(title);
+card.appendChild(time);
+card.appendChild(room);
+card.appendChild(organizer);
 
-        bookingsList.appendChild(card);
+// Проверяем, может ли пользователь отменить бронирование
+const isOwner = booking.userId === currentUserId;
+
+const isManager =
+    currentUserRole === 'office_manager' ||
+    currentUserRole === 'admin';
+
+if (isOwner || isManager) {
+    const cancelButton = document.createElement('button');
+
+    cancelButton.type = 'button';
+    cancelButton.className = 'cancel-booking-button';
+    cancelButton.textContent = 'Отменить бронирование';
+
+    cancelButton.addEventListener('click', async () => {
+        const confirmed = confirm(
+            `Вы действительно хотите отменить встречу "${booking.title}"?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        cancelButton.disabled = true;
+        cancelButton.textContent = 'Отмена...';
+
+        try {
+            const response = await fetch(`/api/bookings/${booking.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.status === 401) {
+                logout();
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Не удалось отменить бронирование');
+            }
+
+            // Обновляем календарь и список встреч
+            await loadBookings();
+            showDayBookings(dayKey);
+
+            statusElement.textContent = 'Бронирование успешно отменено.';
+
+        } catch (error) {
+            console.error('Cancellation error:', error);
+            alert(error.message);
+
+            cancelButton.disabled = false;
+            cancelButton.textContent = 'Отменить бронирование';
+        }
+    });
+
+    card.appendChild(cancelButton);
+}
+
+bookingsList.appendChild(card);
     });
 }
 
