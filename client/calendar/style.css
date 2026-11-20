@@ -241,3 +241,52 @@ body {
     background-color: #999;
     cursor: not-allowed;
 }
+
+.participants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.participant-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.participant-option input {
+    width: auto;
+}
+
+.reschedule-button {
+    background-color: #4A90E2;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.reschedule-button:hover {
+    background-color: #357ABD;
+}
+
+.reschedule-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.reschedule-form input,
+.reschedule-form button {
+    padding: 8px;
+    border-radius: 5px;
+}

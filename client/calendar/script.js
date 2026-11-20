@@ -1,3 +1,8 @@
+
+// ==============================
+// Элементы страницы
+// ==============================
+
 const monthYear = document.getElementById('month-year');
 const daysContainer = document.getElementById('days-container');
 const prevBtn = document.getElementById('prev-btn');
@@ -12,15 +17,33 @@ let currentUser = null;
 try {
     currentUser = JSON.parse(localStorage.getItem('user'));
 } catch (error) {
-    console.error('Не удалось прочитать данные пользователя:', error);
+    console.error('Ошибка чтения пользователя:', error);
 }
 
 const currentUserId = Number(currentUser?.id ?? currentUser?.userId);
 const currentUserRole = currentUser?.role;
 
-if (!token) {
+if (!token || !currentUser) {
     window.location.href = '/';
 }
+
+// ==============================
+// Состояние календаря
+// ==============================
+
+const months = [
+    'Январь', 'Февраль', 'Март', 'Апрель',
+    'Май', 'Июнь', 'Июль', 'Август',
+    'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+];
+
+let currentDate = new Date();
+let allBookings = [];
+let requestNumber = 0;
+
+// ==============================
+// Служебные элементы
+// ==============================
 
 const statusElement = document.createElement('div');
 statusElement.className = 'calendar-status';
@@ -31,19 +54,17 @@ bookingsList.className = 'bookings-list';
 
 if (calendar) {
     calendar.appendChild(bookingsList);
+
+    if (calendarHeader) {
+        calendar.insertBefore(statusElement, calendarHeader.nextSibling);
+    } else {
+        calendar.prepend(statusElement);
+    }
 }
 
-if (calendar && calendarHeader) {
-    calendar.insertBefore(statusElement, calendarHeader.nextSibling);
-}
-
-const months = [
-    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-];
-
-let currentDate = new Date();
-let requestNumber = 0;
+// ==============================
+// Вспомогательные функции
+// ==============================
 
 function logout() {
     localStorage.removeItem('token');
@@ -51,7 +72,67 @@ function logout() {
     window.location.href = '/';
 }
 
-let allBookings = [];
+function getDateKey(value) {
+    const date = new Date(value);
+
+    return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0')
+    ].join('-');
+}
+
+function getLocalDateTime(date, time) {
+    if (!date || !time) {
+        return null;
+    }
+
+    const [year, month, day] = date.split('-').map(Number);
+    const [hours, minutes] = time.split(':').map(Number);
+
+    const result = new Date(year, month - 1, day, hours, minutes);
+
+    if (
+        result.getFullYear() !== year ||
+        result.getMonth() !== month - 1 ||
+        result.getDate() !== day ||
+        result.getHours() !== hours ||
+        result.getMinutes() !== minutes
+    ) {
+        return null;
+    }
+
+    return result;
+}
+
+function getDateInputValue(value) {
+    const date = new Date(value);
+    return getDateKey(date);
+}
+
+function getTimeInputValue(value) {
+    const date = new Date(value);
+
+    return [
+        String(date.getHours()).padStart(2, '0'),
+        String(date.getMinutes()).padStart(2, '0')
+    ].join(':');
+}
+
+async function readResponse(response) {
+    const text = await response.text();
+
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch {
+        return {};
+    }
+}
+
+// ==============================
+// Загрузка бронирований
+// ==============================
+
 async function loadBookings() {
     const currentRequest = ++requestNumber;
 
@@ -68,40 +149,36 @@ async function loadBookings() {
             `/api/bookings?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
             {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 }
             }
         );
 
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401) {
             logout();
             return;
         }
 
-        const data = await response.json();
+        const data = await readResponse(response);
 
         if (!response.ok) {
-            throw new Error(data.error || 'Ошибка загрузки бронирований');
+            throw new Error(data.error || 'Не удалось загрузить бронирования');
         }
 
         if (!Array.isArray(data.bookings)) {
-            throw new Error('Некорректный ответ сервера');
+            throw new Error('Сервер вернул некорректный список бронирований');
         }
 
         if (currentRequest !== requestNumber) {
             return;
         }
 
+        allBookings = data.bookings;
+
         const bookingsByDay = new Map();
 
-        data.bookings.forEach(booking => {
-            const date = new Date(booking.startTime);
-
-            const dayKey = [
-                date.getFullYear(),
-                String(date.getMonth() + 1).padStart(2, '0'),
-                String(date.getDate()).padStart(2, '0')
-            ].join('-');
+        allBookings.forEach(booking => {
+            const dayKey = getDateKey(booking.startTime);
 
             bookingsByDay.set(
                 dayKey,
@@ -109,21 +186,22 @@ async function loadBookings() {
             );
         });
 
-        allBookings = data.bookings;
         renderCalendar(bookingsByDay);
 
         statusElement.textContent =
-            `Бронирований в этом месяце: ${data.count}`;
+            `Бронирований в этом месяце: ${allBookings.length}`;
 
     } catch (error) {
-        if (currentRequest !== requestNumber) {
-            return;
-        }
+        if (currentRequest !== requestNumber) return;
 
-        console.error('Booking loading error:', error);
-        statusElement.textContent = 'Не удалось загрузить бронирования';
+        console.error('Ошибка загрузки:', error);
+        statusElement.textContent = error.message;
     }
 }
+
+// ==============================
+// Просмотр встреч за день
+// ==============================
 
 function showDayBookings(dayKey) {
     bookingsList.innerHTML = '';
@@ -132,17 +210,9 @@ function showDayBookings(dayKey) {
     heading.textContent = `Встречи за ${dayKey}`;
     bookingsList.appendChild(heading);
 
-    const dayBookings = allBookings.filter(booking => {
-        const date = new Date(booking.startTime);
-
-        const bookingDay = [
-            date.getFullYear(),
-            String(date.getMonth() + 1).padStart(2, '0'),
-            String(date.getDate()).padStart(2, '0')
-        ].join('-');
-
-        return bookingDay === dayKey;
-    });
+    const dayBookings = allBookings
+        .filter(booking => getDateKey(booking.startTime) === dayKey)
+        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
     if (dayBookings.length === 0) {
         const message = document.createElement('p');
@@ -150,10 +220,6 @@ function showDayBookings(dayKey) {
         bookingsList.appendChild(message);
         return;
     }
-
-    dayBookings.sort((a, b) =>
-        new Date(a.startTime) - new Date(b.startTime)
-    );
 
     dayBookings.forEach(booking => {
         const card = document.createElement('div');
@@ -173,121 +239,263 @@ function showDayBookings(dayKey) {
             })}`;
 
         const room = document.createElement('p');
-        room.textContent = `Комната: ${booking.room.name}`;
+        room.textContent = `Комната: ${booking.room?.name || 'Не указана'}`;
 
         const organizer = document.createElement('p');
-        organizer.textContent = `Организатор: ${booking.user.name}`;
+        organizer.textContent =
+            `Организатор: ${booking.user?.name || 'Неизвестен'}`;
 
-card.appendChild(title);
-card.appendChild(time);
-card.appendChild(room);
-card.appendChild(organizer);
+        card.append(title, time, room, organizer);
 
-// Проверяем, может ли пользователь отменить бронирование
-const isOwner = booking.userId === currentUserId;
+        const isOwner = Number(booking.userId) === currentUserId;
 
-const isManager =
-    currentUserRole === 'office_manager' ||
-    currentUserRole === 'admin';
+        const isManager =
+            currentUserRole === 'office_manager' ||
+            currentUserRole === 'admin';
 
-if (isOwner || isManager) {
-    const cancelButton = document.createElement('button');
+        // Перенос собственной встречи
+        if (isOwner) {
+            const rescheduleButton = document.createElement('button');
 
-    cancelButton.type = 'button';
-    cancelButton.className = 'cancel-booking-button';
-    cancelButton.textContent = 'Отменить бронирование';
+            rescheduleButton.type = 'button';
+            rescheduleButton.className = 'reschedule-button';
+            rescheduleButton.textContent = 'Перенести';
 
-    cancelButton.addEventListener('click', async () => {
-        const confirmed = confirm(
-            `Вы действительно хотите отменить встречу "${booking.title}"?`
-        );
+            rescheduleButton.addEventListener('click', () => {
+                showRescheduleForm(booking, card);
+            });
 
-        if (!confirmed) {
+            card.appendChild(rescheduleButton);
+        }
+
+        // Отмена встречи
+        if (isOwner || isManager) {
+            const cancelButton = document.createElement('button');
+
+            cancelButton.type = 'button';
+            cancelButton.className = 'cancel-booking-button';
+            cancelButton.textContent = 'Отменить бронирование';
+
+            cancelButton.addEventListener('click', () => {
+                cancelBooking(booking, cancelButton);
+            });
+
+            card.appendChild(cancelButton);
+        }
+
+        bookingsList.appendChild(card);
+    });
+}
+
+// ==============================
+// Перенос бронирования
+// ==============================
+
+function showRescheduleForm(booking, card) {
+    if (card.querySelector('.reschedule-form')) {
+        return;
+    }
+
+    const form = document.createElement('form');
+    form.className = 'reschedule-form';
+
+    const dateLabel = document.createElement('label');
+    dateLabel.textContent = 'Новая дата';
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.required = true;
+    dateInput.value = getDateInputValue(booking.startTime);
+
+    const startLabel = document.createElement('label');
+    startLabel.textContent = 'Начало встречи';
+
+    const startInput = document.createElement('input');
+    startInput.type = 'time';
+    startInput.required = true;
+    startInput.value = getTimeInputValue(booking.startTime);
+
+    const endLabel = document.createElement('label');
+    endLabel.textContent = 'Окончание встречи';
+
+    const endInput = document.createElement('input');
+    endInput.type = 'time';
+    endInput.required = true;
+    endInput.value = getTimeInputValue(booking.endTime);
+
+    const saveButton = document.createElement('button');
+    saveButton.type = 'submit';
+    saveButton.textContent = 'Сохранить';
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.textContent = 'Закрыть';
+
+    closeButton.addEventListener('click', () => form.remove());
+
+    form.append(
+        dateLabel,
+        dateInput,
+        startLabel,
+        startInput,
+        endLabel,
+        endInput,
+        saveButton,
+        closeButton
+    );
+
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+
+        const start = getLocalDateTime(dateInput.value, startInput.value);
+        const end = getLocalDateTime(dateInput.value, endInput.value);
+
+        if (!start || !end) {
+            alert('Укажите корректную дату и время.');
             return;
         }
 
-        cancelButton.disabled = true;
-        cancelButton.textContent = 'Отмена...';
+        if (end <= start) {
+            alert('Время окончания должно быть позже времени начала.');
+            return;
+        }
+
+        saveButton.disabled = true;
+        saveButton.textContent = 'Сохранение...';
 
         try {
             const response = await fetch(`/api/bookings/${booking.id}`, {
-                method: 'DELETE',
+                method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    startTime: start.toISOString(),
+                    endTime: end.toISOString()
+                })
             });
-
-            const data = await response.json();
 
             if (response.status === 401) {
                 logout();
                 return;
             }
 
+            const data = await readResponse(response);
+
             if (!response.ok) {
-                throw new Error(data.error || 'Не удалось отменить бронирование');
+                throw new Error(
+                    data.error || 'Не удалось перенести бронирование'
+                );
             }
 
-            // Обновляем календарь и список встреч
-            await loadBookings();
-            showDayBookings(dayKey);
+            // Переключаем календарь на месяц новой даты
+            currentDate = new Date(
+                start.getFullYear(),
+                start.getMonth(),
+                1
+            );
 
-            statusElement.textContent = 'Бронирование успешно отменено.';
+            await loadBookings();
+
+            // Показываем встречи уже за новую дату
+            showDayBookings(getDateKey(start));
+
+            statusElement.textContent =
+                'Бронирование успешно перенесено.';
 
         } catch (error) {
-            console.error('Cancellation error:', error);
+            console.error('Ошибка переноса:', error);
             alert(error.message);
 
-            cancelButton.disabled = false;
-            cancelButton.textContent = 'Отменить бронирование';
+            saveButton.disabled = false;
+            saveButton.textContent = 'Сохранить';
         }
     });
 
-    card.appendChild(cancelButton);
+    card.appendChild(form);
 }
 
-bookingsList.appendChild(card);
-    });
+// ==============================
+// Отмена бронирования
+// ==============================
+
+async function cancelBooking(booking, button) {
+    const confirmed = confirm(
+        `Вы действительно хотите отменить встречу "${booking.title}"?`
+    );
+
+    if (!confirmed) return;
+
+    button.disabled = true;
+    button.textContent = 'Отмена...';
+
+    try {
+        const response = await fetch(`/api/bookings/${booking.id}`, {
+            method: 'DELETE',
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+
+        const data = await readResponse(response);
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || 'Не удалось отменить бронирование'
+            );
+        }
+
+        await loadBookings();
+
+        statusElement.textContent =
+            'Бронирование успешно отменено.';
+
+        bookingsList.innerHTML = '';
+
+    } catch (error) {
+        console.error('Ошибка отмены:', error);
+        alert(error.message);
+
+        button.disabled = false;
+        button.textContent = 'Отменить бронирование';
+    }
 }
+
+// ==============================
+// Отображение календаря
+// ==============================
 
 function renderCalendar(bookingsByDay = new Map()) {
-    if (!monthYear || !daysContainer) {
-        return;
-    }
+    if (!monthYear || !daysContainer) return;
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
     monthYear.textContent = `${months[month]} ${year}`;
-
     daysContainer.innerHTML = '';
 
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDay = new Date(year, month + 1, 0).getDate();
 
-    const paddingDays = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+    const emptyDays = firstDay === 0 ? 6 : firstDay - 1;
 
-    for (let i = 0; i < paddingDays; i++) {
-        const emptyDiv = document.createElement('div');
-        emptyDiv.classList.add('day', 'empty');
-        daysContainer.appendChild(emptyDiv);
+    for (let i = 0; i < emptyDays; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'day empty';
+        daysContainer.appendChild(empty);
     }
 
     const today = new Date();
 
-    for (let day = 1; day <= lastDate; day++) {
-        const dayDiv = document.createElement('div');
-        dayDiv.classList.add('day');
-
-        dayDiv.textContent = day;
-
-        if (
-            day === today.getDate() &&
-            month === today.getMonth() &&
-            year === today.getFullYear()
-        ) {
-            dayDiv.classList.add('today');
-        }
+    for (let day = 1; day <= lastDay; day++) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'day';
 
         const dayKey = [
             year,
@@ -295,44 +503,69 @@ function renderCalendar(bookingsByDay = new Map()) {
             String(day).padStart(2, '0')
         ].join('-');
 
-        const bookingCount = bookingsByDay.get(dayKey) || 0;
-        dayDiv.addEventListener('click', () => {
-        showDayBookings(dayKey);
-        });
+        dayElement.textContent = day;
 
-        if (bookingCount > 0) {
-            dayDiv.classList.add('has-bookings');
+        if (
+            day === today.getDate() &&
+            month === today.getMonth() &&
+            year === today.getFullYear()
+        ) {
+            dayElement.classList.add('today');
+        }
+
+        const count = bookingsByDay.get(dayKey) || 0;
+
+        if (count > 0) {
+            dayElement.classList.add('has-bookings');
 
             const badge = document.createElement('span');
             badge.className = 'booking-count';
-            badge.textContent = bookingCount;
+            badge.textContent = count;
 
-            dayDiv.appendChild(badge);
-            dayDiv.title = `Бронирований: ${bookingCount}`;
+            dayElement.appendChild(badge);
+            dayElement.title = `Бронирований: ${count}`;
         }
 
-        daysContainer.appendChild(dayDiv);
+        dayElement.addEventListener('click', () => {
+            showDayBookings(dayKey);
+        });
+
+        daysContainer.appendChild(dayElement);
     }
 }
 
-prevBtn.addEventListener('click', () => {
+// ==============================
+// Переключение месяцев
+// ==============================
+
+prevBtn?.addEventListener('click', () => {
     currentDate = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() - 1,
         1
     );
 
+    bookingsList.innerHTML = '';
     loadBookings();
 });
 
-nextBtn.addEventListener('click', () => {
+nextBtn?.addEventListener('click', () => {
     currentDate = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() + 1,
         1
     );
 
+    bookingsList.innerHTML = '';
     loadBookings();
 });
 
-loadBookings();
+// ==============================
+// Запуск
+// ==============================
+
+if (token && currentUser) {
+    loadBookings();
+}
+
+

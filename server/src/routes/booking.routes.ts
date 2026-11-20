@@ -7,6 +7,38 @@ import { verifyToken, USER_ROLES } from '../middleware/auth.middleware.js';
 const router: Router = Router();
 const prisma = new PrismaClient();
 
+// Получение списка сотрудников для приглашения
+router.get('/users', verifyToken, async (_req: Request, res: Response) => {
+    try {
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                department: {
+                    select: {
+                        name: true
+                    }
+                }
+            },
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        return res.status(200).json({
+            status: 'success',
+            users
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+});
+
 router.get('/', verifyToken, async (req: Request, res: Response) => {
     try {
         const { from, to } = req.query;
@@ -90,7 +122,13 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
 
 router.post('/', verifyToken, async (req: Request, res: Response) => {
     const userId = req.user?.userId;
-    const { roomId, startTime, endTime, title } = req.body;
+    const {
+    roomId,
+    startTime,
+    endTime,
+    title,
+    participantIds
+} = req.body;
 
     // Проверка пользователя
     if (!userId) {
@@ -98,6 +136,30 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
             error: 'User is not authorized'
         });
     }
+
+    const parsedParticipantIds: number[] = [];
+
+if (participantIds !== undefined) {
+    if (!Array.isArray(participantIds)) {
+        return res.status(400).json({
+            error: 'Participant IDs must be an array'
+        });
+    }
+
+    for (const id of participantIds) {
+        const parsedId = Number(id);
+
+        if (!Number.isInteger(parsedId) || parsedId <= 0) {
+            return res.status(400).json({
+                error: 'Invalid participant ID'
+            });
+        }
+
+        if (parsedId !== userId && !parsedParticipantIds.includes(parsedId)) {
+            parsedParticipantIds.push(parsedId);
+        }
+    }
+}
 
     // Проверка входных данных
     const parsedRoomId = Number(roomId);
@@ -147,6 +209,24 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
                 throw new Error('ROOM_BLOCKED');
             }
 
+            // Проверяем существование всех приглашённых сотрудников
+            if (parsedParticipantIds.length > 0) {
+    const existingUsers = await tx.user.findMany({
+        where: {
+            id: {
+                in: parsedParticipantIds
+            }
+        },
+        select: {
+            id: true
+        }
+    });
+
+    if (existingUsers.length !== parsedParticipantIds.length) {
+        throw new Error('PARTICIPANT_NOT_FOUND');
+    }
+}
+
             // Проверяем пересечение времени
             const existingBooking = await tx.booking.findFirst({
                 where: {
@@ -160,16 +240,38 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
                 throw new Error('TIME_CONFLICT');
             }
 
-            // Создаём бронирование
-            return await tx.booking.create({
-                data: {
-                    title: title.trim(),
-                    startTime: start,
-                    endTime: end,
-                    roomId: parsedRoomId,
-                    userId: userId
+return await tx.booking.create({
+    data: {
+        title: title.trim(),
+        startTime: start,
+        endTime: end,
+        roomId: parsedRoomId,
+        userId: userId,
+
+        participants: {
+            create: parsedParticipantIds.map((participantId) => ({
+                user: {
+                    connect: {
+                        id: participantId
+                    }
                 }
-            });
+            }))
+        }
+    },
+    include: {
+        participants: {
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        }
+    }
+});
         });
 
         return res.status(201).json({
@@ -179,6 +281,12 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
+
+        if (error instanceof Error && error.message === 'PARTICIPANT_NOT_FOUND') {
+    return res.status(400).json({
+        error: 'One or more participants do not exist'
+    });
+}
         if (error.message === 'ROOM_NOT_FOUND') {
             return res.status(404).json({
                 error: 'Room not found'
@@ -205,7 +313,149 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     }
 });
 
-export default router;
+
+router.patch('/:id', verifyToken, async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    const bookingId = Number(req.params.id);
+    const { startTime, endTime } = req.body;
+
+    // Проверка авторизации
+    if (!userId) {
+        return res.status(401).json({
+            error: 'User is not authorized'
+        });
+    }
+
+    // Проверка ID бронирования
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+        return res.status(400).json({
+            error: 'Invalid booking ID'
+        });
+    }
+
+    // Проверка даты и времени
+    if (
+        typeof startTime !== 'string' ||
+        typeof endTime !== 'string'
+    ) {
+        return res.status(400).json({
+            error: 'Start time and end time are required'
+        });
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (
+        isNaN(start.getTime()) ||
+        isNaN(end.getTime()) ||
+        end <= start
+    ) {
+        return res.status(400).json({
+            error: 'Invalid date range'
+        });
+    }
+
+    try {
+        const updatedBooking = await prisma.$transaction(async (tx) => {
+            // Ищем бронирование
+            const booking = await tx.booking.findUnique({
+                where: { id: bookingId }
+            });
+
+            if (!booking) {
+                throw new Error('BOOKING_NOT_FOUND');
+            }
+
+            // Любая роль может перенести только свою встречу
+            if (booking.userId !== userId) {
+                throw new Error('FORBIDDEN');
+            }
+
+            // Блокируем комнату на время проверки
+await tx.$executeRaw`
+    SELECT pg_advisory_xact_lock(
+        74123::integer,
+        ${booking.roomId}::integer
+    )
+`;
+
+            // Проверяем комнату
+            const room = await tx.room.findUnique({
+                where: { id: booking.roomId }
+            });
+
+            if (!room || room.isBlocked) {
+                throw new Error('ROOM_BLOCKED');
+            }
+
+            // Проверяем пересечение с другими бронированиями
+            const conflictingBooking = await tx.booking.findFirst({
+                where: {
+                    id: { not: bookingId },
+                    roomId: booking.roomId,
+                    startTime: { lt: end },
+                    endTime: { gt: start }
+                }
+            });
+
+            if (conflictingBooking) {
+                throw new Error('TIME_CONFLICT');
+            }
+
+            // Меняем только дату и время
+            return await tx.booking.update({
+                where: { id: bookingId },
+                data: {
+                    startTime: start,
+                    endTime: end
+                },
+                include: {
+                    room: true
+                }
+            });
+        });
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Booking successfully rescheduled',
+            booking: updatedBooking
+        });
+
+    } catch (error) {
+        if (error instanceof Error) {
+            if (error.message === 'BOOKING_NOT_FOUND') {
+                return res.status(404).json({
+                    error: 'Booking not found'
+                });
+            }
+
+            if (error.message === 'FORBIDDEN') {
+                return res.status(403).json({
+                    error: 'You can only reschedule your own bookings'
+                });
+            }
+
+            if (error.message === 'ROOM_BLOCKED') {
+                return res.status(409).json({
+                    error: 'Room is blocked'
+                });
+            }
+
+            if (error.message === 'TIME_CONFLICT') {
+                return res.status(409).json({
+                    error: 'This room is already booked for the selected time'
+                });
+            }
+        }
+
+        console.error('Error rescheduling booking:', error);
+
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+});
 
 router.delete('/:id', verifyToken, async (req: Request, res: Response) => {
     const userId = req.user?.userId;
@@ -278,3 +528,5 @@ router.delete('/:id', verifyToken, async (req: Request, res: Response) => {
         });
     }
 });
+
+export default router;

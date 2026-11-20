@@ -1,3 +1,4 @@
+
 const token = localStorage.getItem('token');
 
 if (!token) {
@@ -13,6 +14,7 @@ const endInput = document.getElementById('end-time');
 const capacityInput = document.getElementById('capacity');
 
 const equipmentList = document.getElementById('equipment-list');
+const participantsList = document.getElementById('participants-list');
 const roomsList = document.getElementById('rooms-list');
 
 const searchStatus = document.getElementById('search-status');
@@ -22,44 +24,25 @@ const bookingStatus = document.getElementById('booking-status');
 
 let selectedRoom = null;
 
-function clearSelectedRoom() {
-    selectedRoom = null;
-    bookingSection.classList.add('hidden');
+// Выход из аккаунта
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
 }
 
-[dateInput, startInput, endInput, capacityInput, equipmentList]
-    .forEach(element => {
-        element.addEventListener('change', clearSelectedRoom);
-    });
-
-// Получаем сегодняшнюю дату в локальном часовом поясе
-function getLocalDate() {
-    const now = new Date();
-
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-}
-
-dateInput.min = getLocalDate();
-dateInput.value = getLocalDate();
-
-// Универсальная функция запроса к API
+// Запросы к серверу
 async function apiRequest(url, options = {}) {
     const response = await fetch(url, {
         ...options,
         headers: {
             ...options.headers,
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`
         }
     });
 
     if (response.status === 401 || response.status === 403) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/';
+        logout();
         throw new Error('Необходимо войти в систему заново');
     }
 
@@ -72,7 +55,47 @@ async function apiRequest(url, options = {}) {
     return data;
 }
 
-// Получение списка оборудования
+// Сегодняшняя дата
+function getLocalDate() {
+    const now = new Date();
+
+    return [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0')
+    ].join('-');
+}
+
+dateInput.min = getLocalDate();
+dateInput.value = getLocalDate();
+
+// Преобразование даты и времени
+function getBookingDateTime(date, time) {
+    return new Date(`${date}T${time}`).toISOString();
+}
+
+// Получение выбранного оборудования
+function getSelectedEquipment() {
+    return [...document.querySelectorAll('.equipment-checkbox:checked')]
+        .map(item => item.value);
+}
+
+// Получение выбранных участников
+function getSelectedParticipants() {
+    return [...document.querySelectorAll('.participant-checkbox:checked')]
+        .map(item => Number(item.value));
+}
+
+// Сброс выбранной комнаты при изменении параметров
+function clearSelectedRoom() {
+    selectedRoom = null;
+    bookingSection.classList.add('hidden');
+}
+
+[dateInput, startInput, endInput, capacityInput, equipmentList]
+    .forEach(element => element.addEventListener('change', clearSelectedRoom));
+
+// Загрузка оборудования
 async function loadEquipment() {
     try {
         const data = await apiRequest('/api/rooms/equipment');
@@ -83,21 +106,16 @@ async function loadEquipment() {
             const label = document.createElement('label');
             label.className = 'equipment-option';
 
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.value = item.id;
-            checkbox.className = 'equipment-checkbox';
+            label.innerHTML = `
+                <input type="checkbox" class="equipment-checkbox" value="${item.id}">
+                <span></span>
+            `;
 
-            const name = document.createElement('span');
-            name.textContent = item.name;
-
-            label.appendChild(checkbox);
-            label.appendChild(name);
-
+            label.querySelector('span').textContent = item.name;
             equipmentList.appendChild(label);
         });
 
-        if (data.equipment.length === 0) {
+        if (!data.equipment.length) {
             equipmentList.textContent = 'Оборудование пока не добавлено.';
         }
 
@@ -107,27 +125,47 @@ async function loadEquipment() {
     }
 }
 
-// Получение выбранного оборудования
-function getSelectedEquipment() {
-    const checkboxes = document.querySelectorAll('.equipment-checkbox');
+// Загрузка сотрудников
+async function loadUsers() {
+    try {
+        const data = await apiRequest('/api/bookings/users');
 
-    return Array.from(checkboxes)
-        .filter(checkbox => checkbox.checked)
-        .map(checkbox => checkbox.value);
-}
+        participantsList.innerHTML = '';
 
-// Преобразование локальной даты и времени в ISO для сервера
-function getBookingDateTime(date, time) {
-    return new Date(`${date}T${time}`).toISOString();
+        if (!data.users.length) {
+            participantsList.textContent = 'Сотрудники не найдены.';
+            return;
+        }
+
+        data.users.forEach(user => {
+            const label = document.createElement('label');
+            label.className = 'participant-option';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'participant-checkbox';
+            checkbox.value = user.id;
+
+            const info = document.createElement('span');
+            info.textContent = `${user.name} (${user.email})` +
+                (user.department?.name ? ` — ${user.department.name}` : '');
+
+            label.append(checkbox, info);
+            participantsList.appendChild(label);
+        });
+
+    } catch (error) {
+        console.error(error);
+        participantsList.textContent = 'Не удалось загрузить сотрудников.';
+    }
 }
 
 // Поиск свободных комнат
-searchForm.addEventListener('submit', async (event) => {
+searchForm.addEventListener('submit', async event => {
     event.preventDefault();
 
     roomsList.innerHTML = '';
-    bookingSection.classList.add('hidden');
-    selectedRoom = null;
+    clearSelectedRoom();
 
     const date = dateInput.value;
     const startTime = startInput.value;
@@ -144,26 +182,22 @@ searchForm.addEventListener('submit', async (event) => {
     }
 
     if (endTime <= startTime) {
-        searchStatus.textContent = 'Время окончания должно быть позже времени начала.';
+        searchStatus.textContent = 'Время окончания должно быть позже начала.';
         return;
     }
 
-    const start = getBookingDateTime(date, startTime);
-    const end = getBookingDateTime(date, endTime);
-
-    const capacity = capacityInput.value;
-    const equipmentIds = getSelectedEquipment();
-
     const params = new URLSearchParams({
-        startTime: start,
-        endTime: end
+        startTime: getBookingDateTime(date, startTime),
+        endTime: getBookingDateTime(date, endTime)
     });
 
-    if (capacity) {
-        params.set('capacity', capacity);
+    if (capacityInput.value) {
+        params.set('capacity', capacityInput.value);
     }
 
-    if (equipmentIds.length > 0) {
+    const equipmentIds = getSelectedEquipment();
+
+    if (equipmentIds.length) {
         params.set('equipmentIds', equipmentIds.join(','));
     }
 
@@ -171,19 +205,15 @@ searchForm.addEventListener('submit', async (event) => {
 
     try {
         const data = await apiRequest(
-            `/api/rooms/available?${params.toString()}`
+            `/api/rooms/available?${params}`
         );
 
-        if (data.rooms.length === 0) {
-            searchStatus.textContent =
-                'Свободных комнат с такими параметрами не найдено.';
-
+        if (!data.rooms.length) {
+            searchStatus.textContent = 'Свободных комнат не найдено.';
             return;
         }
 
-        searchStatus.textContent =
-            `Найдено свободных комнат: ${data.rooms.length}`;
-
+        searchStatus.textContent = `Найдено комнат: ${data.rooms.length}`;
         renderRooms(data.rooms);
 
     } catch (error) {
@@ -206,34 +236,17 @@ function renderRooms(rooms) {
         const capacity = document.createElement('p');
         capacity.textContent = `Вместимость: ${room.capacity} чел.`;
 
-        const equipmentTitle = document.createElement('p');
-        equipmentTitle.className = 'room-equipment';
-        equipmentTitle.textContent = 'Оборудование:';
-
-        const equipmentNames = room.equipment.map(item => {
-            return item.equipment.name;
-        });
-
         const equipment = document.createElement('p');
-        equipment.textContent = equipmentNames.length > 0
-            ? equipmentNames.join(', ')
-            : 'Отсутствует';
+        const names = room.equipment.map(item => item.equipment.name);
+        equipment.textContent = `Оборудование: ${names.join(', ') || 'Отсутствует'}`;
 
-        const selectButton = document.createElement('button');
-        selectButton.type = 'button';
-        selectButton.className = 'primary-button';
-        selectButton.textContent = 'Выбрать комнату';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'primary-button';
+        button.textContent = 'Выбрать комнату';
+        button.addEventListener('click', () => selectRoom(room));
 
-        selectButton.addEventListener('click', () => {
-            selectRoom(room);
-        });
-
-        card.appendChild(title);
-        card.appendChild(capacity);
-        card.appendChild(equipmentTitle);
-        card.appendChild(equipment);
-        card.appendChild(selectButton);
-
+        card.append(title, capacity, equipment, button);
         roomsList.appendChild(card);
     });
 }
@@ -246,7 +259,6 @@ function selectRoom(room) {
         `Выбрана комната: ${room.name}. Вместимость: ${room.capacity} чел.`;
 
     bookingSection.classList.remove('hidden');
-
     bookingStatus.textContent = '';
 
     bookingSection.scrollIntoView({
@@ -256,7 +268,7 @@ function selectRoom(room) {
 }
 
 // Создание бронирования
-bookingForm.addEventListener('submit', async (event) => {
+bookingForm.addEventListener('submit', async event => {
     event.preventDefault();
 
     if (!selectedRoom) {
@@ -271,19 +283,9 @@ bookingForm.addEventListener('submit', async (event) => {
         return;
     }
 
-    const date = dateInput.value;
-    const startTime = startInput.value;
-    const endTime = endInput.value;
-
-    const start = getBookingDateTime(date, startTime);
-    const end = getBookingDateTime(date, endTime);
-
     const submitButton = bookingForm.querySelector('button[type="submit"]');
-
     submitButton.disabled = true;
     submitButton.textContent = 'Сохранение...';
-
-    bookingStatus.textContent = '';
 
     try {
         await apiRequest('/api/bookings', {
@@ -293,14 +295,14 @@ bookingForm.addEventListener('submit', async (event) => {
             },
             body: JSON.stringify({
                 roomId: selectedRoom.id,
-                title: title,
-                startTime: start,
-                endTime: end
+                title,
+                startTime: getBookingDateTime(dateInput.value, startInput.value),
+                endTime: getBookingDateTime(dateInput.value, endInput.value),
+                participantIds: getSelectedParticipants()
             })
         });
 
-        bookingStatus.textContent =
-            'Бронирование успешно создано! Возвращаемся к календарю...';
+        bookingStatus.textContent = 'Бронирование успешно создано!';
 
         setTimeout(() => {
             window.location.href = '/calendar/booking.html';
@@ -308,10 +310,8 @@ bookingForm.addEventListener('submit', async (event) => {
 
     } catch (error) {
         console.error(error);
-
         bookingStatus.textContent = error.message;
 
-        // Если комната уже занята, обновим результаты поиска
         if (error.message.includes('already booked') ||
             error.message.includes('blocked')) {
             searchForm.requestSubmit();
@@ -323,5 +323,6 @@ bookingForm.addEventListener('submit', async (event) => {
     }
 });
 
-// Загружаем оборудование при открытии страницы
+// Запуск загрузки данных
 loadEquipment();
+loadUsers();
