@@ -3,9 +3,91 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken, USER_ROLES } from '../middleware/auth.middleware.js';
+import { randomUUID } from 'node:crypto';
 
 const router: Router = Router();
 const prisma = new PrismaClient();
+
+
+// Проверка рабочих часов и максимальной длительности встречи
+function validateBookingTime(
+    start: Date,
+    end: Date,
+    settings: {
+        workStart: string;
+        workEnd: string;
+        maxBookingHours: number;
+    }
+): string | null {
+    const timezone = 'Europe/Kyiv';
+
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23'
+    });
+
+    const startParts = formatter.formatToParts(start);
+    const endParts = formatter.formatToParts(end);
+
+    const getPart = (
+        parts: Intl.DateTimeFormatPart[],
+        type: string
+    ) => parts.find(part => part.type === type)?.value;
+
+    const startDate = [
+        getPart(startParts, 'year'),
+        getPart(startParts, 'month'),
+        getPart(startParts, 'day')
+    ].join('-');
+
+    const endDate = [
+        getPart(endParts, 'year'),
+        getPart(endParts, 'month'),
+        getPart(endParts, 'day')
+    ].join('-');
+
+    if (startDate !== endDate) {
+        return 'Booking must start and end on the same working day';
+    }
+
+    const startMinutes =
+        Number(getPart(startParts, 'hour')) * 60 +
+        Number(getPart(startParts, 'minute'));
+
+    const endMinutes =
+        Number(getPart(endParts, 'hour')) * 60 +
+        Number(getPart(endParts, 'minute'));
+
+    const workStart =
+        Number(settings.workStart.slice(0, 2)) * 60 +
+        Number(settings.workStart.slice(3, 5));
+
+    const workEnd =
+        Number(settings.workEnd.slice(0, 2)) * 60 +
+        Number(settings.workEnd.slice(3, 5));
+
+    if (
+        startMinutes < workStart ||
+        endMinutes > workEnd
+    ) {
+        return 'Booking is outside working hours';
+    }
+
+    const durationMinutes =
+        (end.getTime() - start.getTime()) / 60000;
+
+    if (durationMinutes > settings.maxBookingHours * 60) {
+        return 'Booking exceeds maximum duration';
+    }
+
+    return null;
+}
+
 
 // Получение списка сотрудников для приглашения
 router.get('/users', verifyToken, async (_req: Request, res: Response) => {
@@ -120,48 +202,26 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
     }
 });
 
+
 router.post('/', verifyToken, async (req: Request, res: Response) => {
     const userId = req.user?.userId;
-    const {
-    roomId,
-    startTime,
-    endTime,
-    title,
-    participantIds
-} = req.body;
 
-    // Проверка пользователя
     if (!userId) {
         return res.status(401).json({
             error: 'User is not authorized'
         });
     }
 
-    const parsedParticipantIds: number[] = [];
+    const {
+        roomId,
+        startTime,
+        endTime,
+        title,
+        participantIds,
+        isRecurring,
+        recurrenceCount
+    } = req.body;
 
-if (participantIds !== undefined) {
-    if (!Array.isArray(participantIds)) {
-        return res.status(400).json({
-            error: 'Participant IDs must be an array'
-        });
-    }
-
-    for (const id of participantIds) {
-        const parsedId = Number(id);
-
-        if (!Number.isInteger(parsedId) || parsedId <= 0) {
-            return res.status(400).json({
-                error: 'Invalid participant ID'
-            });
-        }
-
-        if (parsedId !== userId && !parsedParticipantIds.includes(parsedId)) {
-            parsedParticipantIds.push(parsedId);
-        }
-    }
-}
-
-    // Проверка входных данных
     const parsedRoomId = Number(roomId);
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -169,9 +229,10 @@ if (participantIds !== undefined) {
     if (
         !Number.isInteger(parsedRoomId) ||
         parsedRoomId <= 0 ||
-        !title?.trim() ||
-        !startTime ||
-        !endTime ||
+        typeof title !== 'string' ||
+        !title.trim() ||
+        typeof startTime !== 'string' ||
+        typeof endTime !== 'string' ||
         isNaN(start.getTime()) ||
         isNaN(end.getTime()) ||
         end <= start
@@ -181,21 +242,72 @@ if (participantIds !== undefined) {
         });
     }
 
+    if (
+        isRecurring !== undefined &&
+        typeof isRecurring !== 'boolean'
+    ) {
+        return res.status(400).json({
+            error: 'Invalid recurring setting'
+        });
+    }
+
+    const recurring = isRecurring === true;
+    const count = recurring ? Number(recurrenceCount) : 1;
+
+    if (
+        !Number.isInteger(count) ||
+        count < 1 ||
+        count > 52 ||
+        (recurring && count < 2)
+    ) {
+        return res.status(400).json({
+            error: 'Recurring bookings must contain 2 to 52 meetings'
+        });
+    }
+
+    const parsedParticipantIds: number[] = [];
+
+    if (participantIds !== undefined) {
+        if (!Array.isArray(participantIds)) {
+            return res.status(400).json({
+                error: 'Participant IDs must be an array'
+            });
+        }
+
+        for (const id of participantIds) {
+            const parsedId = Number(id);
+
+            if (!Number.isInteger(parsedId) || parsedId <= 0) {
+                return res.status(400).json({
+                    error: 'Invalid participant ID'
+                });
+            }
+
+            if (
+                parsedId !== userId &&
+                !parsedParticipantIds.includes(parsedId)
+            ) {
+                parsedParticipantIds.push(parsedId);
+            }
+        }
+    }
+
+    const seriesId = recurring ? randomUUID() : null;
+
     try {
-        const booking = await prisma.$transaction(async (tx) => {
+        const bookings = await prisma.$transaction(async (tx) => {
+            // Блокируем комнату на время проверки и создания
+            await tx.$queryRaw`
+                WITH lock_result AS MATERIALIZED (
+                    SELECT pg_advisory_xact_lock(
+                        74123::integer,
+                        ${parsedRoomId}::integer
+                    )
+                )
+                SELECT 1::integer AS locked
+                FROM lock_result
+            `;
 
-        await tx.$queryRaw`
-            WITH lock_result AS MATERIALIZED (
-                SELECT pg_advisory_xact_lock(
-                    74123::integer,
-                    ${parsedRoomId}::integer
-            )
-        )
-        SELECT 1::integer AS locked
-        FROM lock_result
-    `;
-
-            // Проверяем существование комнаты
             const room = await tx.room.findUnique({
                 where: { id: parsedRoomId }
             });
@@ -204,105 +316,146 @@ if (participantIds !== undefined) {
                 throw new Error('ROOM_NOT_FOUND');
             }
 
-            // Проверяем блокировку комнаты
             if (room.isBlocked) {
                 throw new Error('ROOM_BLOCKED');
             }
 
-            // Проверяем существование всех приглашённых сотрудников
-            if (parsedParticipantIds.length > 0) {
-    const existingUsers = await tx.user.findMany({
-        where: {
-            id: {
-                in: parsedParticipantIds
-            }
-        },
-        select: {
-            id: true
-        }
-    });
-
-    if (existingUsers.length !== parsedParticipantIds.length) {
-        throw new Error('PARTICIPANT_NOT_FOUND');
-    }
-}
-
-            // Проверяем пересечение времени
-            const existingBooking = await tx.booking.findFirst({
-                where: {
-                    roomId: parsedRoomId,
-                    startTime: { lt: end },
-                    endTime: { gt: start }
-                }
+            // Загружаем системные ограничения из PostgreSQL
+            const settings = await tx.systemSettings.upsert({
+                where: { id: 1 },
+                update: {},
+                create: { id: 1 }
             });
 
-            if (existingBooking) {
-                throw new Error('TIME_CONFLICT');
-            }
+            // Проверяем существование участников
+            if (parsedParticipantIds.length > 0) {
+                const existingUsers = await tx.user.findMany({
+                    where: {
+                        id: { in: parsedParticipantIds }
+                    },
+                    select: { id: true }
+                });
 
-return await tx.booking.create({
-    data: {
-        title: title.trim(),
-        startTime: start,
-        endTime: end,
-        roomId: parsedRoomId,
-        userId: userId,
-
-        participants: {
-            create: parsedParticipantIds.map((participantId) => ({
-                user: {
-                    connect: {
-                        id: participantId
-                    }
-                }
-            }))
-        }
-    },
-    include: {
-        participants: {
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true
-                    }
+                if (
+                    existingUsers.length !== parsedParticipantIds.length
+                ) {
+                    throw new Error('PARTICIPANT_NOT_FOUND');
                 }
             }
-        }
-    }
-});
+
+            const createdBookings = [];
+
+            for (let i = 0; i < count; i++) {
+                // Каждая следующая встреча через 7 дней
+                const occurrenceStart = new Date(
+                    start.getTime() + i * 7 * 24 * 60 * 60 * 1000
+                );
+
+                const occurrenceEnd = new Date(
+                    end.getTime() + i * 7 * 24 * 60 * 60 * 1000
+                );
+
+                // Проверяем рабочее время и максимальную длительность
+                const timeError = validateBookingTime(
+                    occurrenceStart,
+                    occurrenceEnd,
+                    settings
+                );
+
+                if (timeError === 'Booking exceeds maximum duration') {
+                    throw new Error('MAX_DURATION_EXCEEDED');
+                }
+
+                if (timeError) {
+                    throw new Error('OUTSIDE_WORKING_HOURS');
+                }
+
+                // Проверяем пересечение для каждой даты
+                const conflict = await tx.booking.findFirst({
+                    where: {
+                        roomId: parsedRoomId,
+                        startTime: { lt: occurrenceEnd },
+                        endTime: { gt: occurrenceStart }
+                    }
+                });
+
+                if (conflict) {
+                    throw new Error('TIME_CONFLICT');
+                }
+
+                const booking = await tx.booking.create({
+                    data: {
+                        title: title.trim(),
+                        startTime: occurrenceStart,
+                        endTime: occurrenceEnd,
+                        roomId: parsedRoomId,
+                        userId,
+                        isRecurring: recurring,
+                        seriesId,
+                        participants: {
+                            create: parsedParticipantIds.map(
+                                (participantId) => ({
+                                    user: {
+                                        connect: { id: participantId }
+                                    }
+                                })
+                            )
+                        }
+                    }
+                });
+
+                createdBookings.push(booking);
+            }
+
+            return createdBookings;
         });
 
         return res.status(201).json({
             status: 'success',
-            message: 'Booking successfully created!',
-            booking
+            message: recurring
+                ? 'Recurring bookings successfully created'
+                : 'Booking successfully created',
+            count: bookings.length,
+            bookings
         });
 
-    } catch (error: any) {
+    } catch (error) {
+        if (error instanceof Error) {
+            if (error.message === 'PARTICIPANT_NOT_FOUND') {
+                return res.status(400).json({
+                    error: 'One or more participants do not exist'
+                });
+            }
 
-        if (error instanceof Error && error.message === 'PARTICIPANT_NOT_FOUND') {
-    return res.status(400).json({
-        error: 'One or more participants do not exist'
-    });
-}
-        if (error.message === 'ROOM_NOT_FOUND') {
-            return res.status(404).json({
-                error: 'Room not found'
-            });
-        }
+            if (error.message === 'ROOM_NOT_FOUND') {
+                return res.status(404).json({
+                    error: 'Room not found'
+                });
+            }
 
-        if (error.message === 'ROOM_BLOCKED') {
-            return res.status(409).json({
-                error: 'Room is blocked'
-            });
-        }
+            if (error.message === 'ROOM_BLOCKED') {
+                return res.status(409).json({
+                    error: 'Room is blocked'
+                });
+            }
 
-        if (error.message === 'TIME_CONFLICT') {
-            return res.status(409).json({
-                error: 'This room is already booked for the selected time'
-            });
+            if (error.message === 'TIME_CONFLICT') {
+                return res.status(409).json({
+                    error: 'One of the recurring meetings conflicts with another booking'
+                });
+            }
+
+            if (error.message === 'OUTSIDE_WORKING_HOURS') {
+                return res.status(400).json({
+                    error: 'Booking must be within working hours and on the same working day'
+                });
+            }
+
+            if (error.message === 'MAX_DURATION_EXCEEDED') {
+                return res.status(400).json({
+                    error: 'Booking exceeds maximum duration'
+                });
+            }
         }
 
         console.error('Error creating booking:', error);
@@ -312,7 +465,6 @@ return await tx.booking.create({
         });
     }
 });
-
 
 router.patch('/:id', verifyToken, async (req: Request, res: Response) => {
     const userId = req.user?.userId;
@@ -367,18 +519,25 @@ router.patch('/:id', verifyToken, async (req: Request, res: Response) => {
                 throw new Error('BOOKING_NOT_FOUND');
             }
 
-            // Любая роль может перенести только свою встречу
-            if (booking.userId !== userId) {
+            const isManager =
+                req.user?.role === USER_ROLES.OFFICE_MANAGER ||
+                req.user?.role === USER_ROLES.ADMIN;
+
+            if (!isManager && booking.userId !== userId) {
                 throw new Error('FORBIDDEN');
             }
 
             // Блокируем комнату на время проверки
-await tx.$executeRaw`
-    SELECT pg_advisory_xact_lock(
-        74123::integer,
-        ${booking.roomId}::integer
-    )
-`;
+            await tx.$queryRaw`
+                WITH lock_result AS MATERIALIZED (
+                    SELECT pg_advisory_xact_lock(
+                        74123::integer,
+                        ${booking.roomId}::integer
+                    )
+                )
+                SELECT 1::integer AS locked
+                FROM lock_result
+            `;
 
             // Проверяем комнату
             const room = await tx.room.findUnique({
@@ -387,6 +546,23 @@ await tx.$executeRaw`
 
             if (!room || room.isBlocked) {
                 throw new Error('ROOM_BLOCKED');
+            }
+
+            // Загружаем системные ограничения и проверяем новое время
+            const settings = await tx.systemSettings.upsert({
+                where: { id: 1 },
+                update: {},
+                create: { id: 1 }
+            });
+
+            const timeError = validateBookingTime(start, end, settings);
+
+            if (timeError === 'Booking exceeds maximum duration') {
+                throw new Error('MAX_DURATION_EXCEEDED');
+            }
+
+            if (timeError) {
+                throw new Error('OUTSIDE_WORKING_HOURS');
             }
 
             // Проверяем пересечение с другими бронированиями
@@ -445,6 +621,18 @@ await tx.$executeRaw`
             if (error.message === 'TIME_CONFLICT') {
                 return res.status(409).json({
                     error: 'This room is already booked for the selected time'
+                });
+            }
+
+            if (error.message === 'OUTSIDE_WORKING_HOURS') {
+                return res.status(400).json({
+                    error: 'Booking must be within working hours and on the same working day'
+                });
+            }
+
+            if (error.message === 'MAX_DURATION_EXCEEDED') {
+                return res.status(400).json({
+                    error: 'Booking exceeds maximum duration'
                 });
             }
         }

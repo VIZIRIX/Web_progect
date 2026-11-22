@@ -91,9 +91,19 @@
 
             <form id="booking-form">
 
-                <div class="form-group">
-                    <label for="meeting-title">Название встречи</label>
-                    <div class="form-group">
+
+<div class="form-group">
+    <label for="meeting-title">Название встречи</label>
+    <input
+        type="text"
+        id="meeting-title"
+        maxlength="120"
+        placeholder="Например: Совещание отдела"
+        required
+    >
+</div>
+
+<div class="form-group">
     <label>Участники встречи</label>
     <p>Выберите сотрудников, которых хотите пригласить.</p>
 
@@ -101,18 +111,32 @@
         Загрузка списка сотрудников...
     </div>
 </div>
-                    <input
-                        type="text"
-                        id="meeting-title"
-                        maxlength="120"
-                        placeholder="Например: Совещание отдела"
-                        required
-                    >
-                </div>
 
-                <button type="submit" class="primary-button">
-                    Забронировать комнату
-                </button>
+<div class="form-group">
+    <label>
+        <input type="checkbox" id="recurring-booking">
+        Повторять бронирование еженедельно
+    </label>
+
+    <div id="recurring-options" class="hidden">
+        <label for="recurrence-count">
+            Количество встреч (включая первую)
+        </label>
+
+        <input
+            type="number"
+            id="recurrence-count"
+            min="2"
+            max="52"
+            value="4"
+        >
+    </div>
+</div>
+
+<button type="submit" class="primary-button">
+    Забронировать комнату
+</button>
+
 
             </form>
 

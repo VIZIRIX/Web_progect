@@ -84,3 +84,11 @@ model BookingParticipant {
 
   @@id([bookingId, userId])
 }
+
+// 7. Налаштування системи
+model SystemSettings {
+  id              Int    @id @default(1)
+  workStart       String @default("08:00")
+  workEnd         String @default("20:00")
+  maxBookingHours Int    @default(4)
+}

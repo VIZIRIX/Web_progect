@@ -21,8 +21,18 @@ const searchStatus = document.getElementById('search-status');
 const bookingSection = document.getElementById('booking-section');
 const selectedRoomElement = document.getElementById('selected-room');
 const bookingStatus = document.getElementById('booking-status');
+const recurringCheckbox = document.getElementById('recurring-booking');
+const recurringOptions = document.getElementById('recurring-options');
+const recurrenceCountInput = document.getElementById('recurrence-count');
 
 let selectedRoom = null;
+// Настройки еженедельного повторения
+recurringCheckbox.addEventListener('change', () => {
+    recurringOptions.classList.toggle(
+        'hidden',
+        !recurringCheckbox.checked
+    );
+});
 
 // Выход из аккаунта
 function logout() {
@@ -283,6 +293,19 @@ bookingForm.addEventListener('submit', async event => {
         return;
     }
 
+    if (
+    recurringCheckbox.checked &&
+    (
+        !Number.isInteger(Number(recurrenceCountInput.value)) ||
+        Number(recurrenceCountInput.value) < 2 ||
+        Number(recurrenceCountInput.value) > 52
+    )
+) {
+    bookingStatus.textContent =
+        'Количество встреч должно быть от 2 до 52.';
+    return;
+}
+
     const submitButton = bookingForm.querySelector('button[type="submit"]');
     submitButton.disabled = true;
     submitButton.textContent = 'Сохранение...';
@@ -298,7 +321,11 @@ bookingForm.addEventListener('submit', async event => {
                 title,
                 startTime: getBookingDateTime(dateInput.value, startInput.value),
                 endTime: getBookingDateTime(dateInput.value, endInput.value),
-                participantIds: getSelectedParticipants()
+                participantIds: getSelectedParticipants(),
+isRecurring: recurringCheckbox.checked,
+recurrenceCount: recurringCheckbox.checked
+    ? Number(recurrenceCountInput.value)
+    : 1
             })
         });
 
