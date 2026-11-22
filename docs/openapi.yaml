@@ -1,682 +1,781 @@
 openapi: 3.1.0
 info:
-  title: Веб-проект API
-  version: 1.0.0
-  summary: Бронирование переговорных комнат
-  description: >
-    REST API сервера (Express + Prisma). Все ответы — JSON; ошибки —
-    `application/problem+json` (RFC 9457). Аутентификация — JWT в заголовке
-    `Authorization: Bearer <token>`.
+    title: Веб-проект API
+    version: 1.0.0
+    summary: Бронирование переговорных комнат
+    description: >
+        REST API сервера (Express + Prisma). Все ответы — JSON; ошибки —
+        `application/problem+json` (RFC 9457). Аутентификация — JWT в заголовке
+        `Authorization: Bearer <token>`.
 servers:
-  - url: http://localhost:5000/api
-    description: Локально (dev)
-  - url: http://web_project_backend:5000/api
-    description: Docker Compose
+    - url: http://localhost:5000/api
+      description: Локально (dev)
+    - url: http://web_project_backend:5000/api
+      description: Docker Compose
 paths:
-  /register:
-    post:
-      operationId: register
-      summary: Регистрация пользователя
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, email, password, departmentId]
-              properties:
-                name: { type: string, example: Ivan Ivanov }
-                email: { type: string, format: email, example: ivan@example.com }
-                password: { type: string, example: Pass123! }
-                departmentId: { type: integer, example: 3 }
-      responses:
-        '201':
-          description: Успешная регистрация
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, enum: [success] }
-                  message: { type: string }
-                  userId: { type: integer }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '429':
-          $ref: '#/components/responses/RateLimited'
+    /register:
+        post:
+            operationId: register
+            summary: Регистрация пользователя
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [name, email, password, departmentId]
+                            properties:
+                                name: { type: string, example: Ivan Ivanov }
+                                email: { type: string, format: email, example: ivan@example.com }
+                                password: { type: string, example: Pass123! }
+                                departmentId: { type: integer, example: 3 }
+            responses:
+                "201":
+                    description: Успешная регистрация
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string, enum: [success] }
+                                    message: { type: string }
+                                    userId: { type: integer }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "429":
+                    $ref: "#/components/responses/RateLimited"
 
-  /login:
-    post:
-      operationId: login
-      summary: Вход пользователя
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password]
-              properties:
+    /login:
+        post:
+            operationId: login
+            summary: Вход пользователя
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email, password]
+                            properties:
+                                email: { type: string, format: email }
+                                password: { type: string }
+            responses:
+                "200":
+                    description: Успешный вход
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string, enum: [success] }
+                                    token: { type: string }
+                                    user: { $ref: "#/components/schemas/UserLight" }
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
+    /health:
+        get:
+            operationId: healthCheck
+            summary: Проверка работоспособности (healthcheck)
+            responses:
+                "200":
+                    description: Сервер работает
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string, example: success }
+                                    message:
+                                        { type: string, example: "Server is running successfully!" }
+
+    /bookings:
+        get:
+            operationId: listBookings
+            summary: Список бронирований за период (c пагинацией)
+            parameters:
+                - name: from
+                  in: query
+                  required: false
+                  schema: { type: string, format: date-time }
+                - name: to
+                  in: query
+                  required: false
+                  schema: { type: string, format: date-time }
+                - name: limit
+                  in: query
+                  schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+                - name: offset
+                  in: query
+                  schema: { type: integer, minimum: 0, default: 0 }
+                - name: sort
+                  in: query
+                  schema:
+                      type: string
+                      enum: [startTime, -startTime]
+            responses:
+                "200":
+                    description: Список бронирований
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string, enum: [success] }
+                                    count: { type: integer }
+                                    total: { type: integer }
+                                    bookings:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/Booking" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+            security: [{ bearerAuth: [] }]
+        post:
+            operationId: createBooking
+            summary: Создать бронирование (включая повторюемое — серия)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [roomId, title, startTime, endTime]
+                            properties:
+                                roomId: { type: integer }
+                                title: { type: string }
+                                startTime: { type: string, format: date-time }
+                                endTime: { type: string, format: date-time }
+                                participantIds:
+                                    type: array
+                                    items: { type: integer }
+                                isRecurring: { type: boolean }
+                                recurrenceCount:
+                                    type: integer
+                                    minimum: 2
+                                    maximum: 52
+            responses:
+                "201":
+                    description: Бронирование создано
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string, enum: [success] }
+                                    message: { type: string }
+                                    count: { type: integer }
+                                    bookings:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/Booking" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+
+    /bookings/users:
+        get:
+            operationId: listUsersForBooking
+            summary: Список сотрудников (для приглашения)
+            responses:
+                "200":
+                    description: Список сотрудников
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    users:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                id: { type: integer }
+                                                name: { type: string }
+                                                email: { type: string }
+                                                department:
+                                                    type: object
+                                                    properties:
+                                                        name: { type: string }
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+            security: [{ bearerAuth: [] }]
+
+    /bookings/{id}:
+        patch:
+            operationId: rescheduleBooking
+            summary: Перенос бронирования (время)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [startTime, endTime]
+                            properties:
+                                startTime: { type: string, format: date-time }
+                                endTime: { type: string, format: date-time }
+            responses:
+                "200":
+                    description: Бронирование перенесено
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    booking: { $ref: "#/components/schemas/Booking" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+        delete:
+            operationId: cancelBooking
+            summary: Отмена бронирования (организатор или владелец)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            responses:
+                "200":
+                    description: Бронирование отменено
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+            security: [{ bearerAuth: [] }]
+
+    /bookings/{id}/cancel:
+        post:
+            operationId: cancelBookingForced
+            summary: Принудительное скасуванне броні (офис-менеджер/администратор)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            responses:
+                "200":
+                    description: Бронирование скасовано (+ количество уведомлений)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    notificationsCount: { type: integer }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+
+    /me/notifications:
+        get:
+            operationId: getMyNotifications
+            summary: Список уведомлений текущего пользователя (новые первыми)
+            parameters:
+                - name: limit
+                  in: query
+                  schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+                - name: offset
+                  in: query
+                  schema: { type: integer, minimum: 0, default: 0 }
+            responses:
+                "200":
+                    description: Список уведомлений
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    notifications:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/Notification" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+            security: [{ bearerAuth: [] }]
+
+    /me/notifications/{id}/read:
+        patch:
+            operationId: markNotificationRead
+            summary: Пометить уведомление как прочитанное (только владелец)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            responses:
+                "200":
+                    description: Уведомление помечено прочитанным
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+            security: [{ bearerAuth: [] }]
+
+    /rooms:
+        get:
+            operationId: listRooms
+            summary: Список комнат (только офис-менеджер и админ)
+            responses:
+                "200":
+                    description: Список комнат включая заблокированные
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    count: { type: integer }
+                                    rooms:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/RoomManagement" }
+            security: [{ bearerAuth: [] }]
+        post:
+            operationId: createRoom
+            summary: Создание комнаты (только офис-менеджер и админ)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [name, capacity]
+                            properties:
+                                name: { type: string, example: "Комната 1" }
+                                capacity: { type: integer, example: 10 }
+                                equipmentIds:
+                                    type: array
+                                    items: { type: integer }
+            responses:
+                "201":
+                    description: Комната создана
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    room: { $ref: "#/components/schemas/RoomManagement" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+
+    /rooms/{id}:
+        patch:
+            operationId: updateRoom
+            summary: Изменение комнаты (название, вместимость, оборудование)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name: { type: string }
+                                capacity: { type: integer }
+                                equipmentIds:
+                                    type: array
+                                    items: { type: integer }
+            responses:
+                "200":
+                    description: Комната обновлена
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    room: { $ref: "#/components/schemas/RoomManagement" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+            security: [{ bearerAuth: [] }]
+
+    /rooms/{id}/block:
+        patch:
+            operationId: blockRoom
+            summary: Блокировка/разблокировка комнаты
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [isBlocked]
+                            properties:
+                                isBlocked: { type: boolean }
+            responses:
+                "200":
+                    description: Статус изменен
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    room:
+                                        type: object
+                                        properties:
+                                            id: { type: integer }
+                                            isBlocked: { type: boolean }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+            security: [{ bearerAuth: [] }]
+
+    /rooms/equipment:
+        get:
+            operationId: listEquipment
+            summary: Список всех типов оборудования
+            responses:
+                "200":
+                    description: Список оборудования
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    count: { type: integer }
+                                    equipment:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/Equipment" }
+            security: [{ bearerAuth: [] }]
+        post:
+            operationId: createEquipment
+            summary: Создание типа оборудования (только менеджер/админ)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [name]
+                            properties:
+                                name: { type: string }
+            responses:
+                "201":
+                    description: Тип оборудования создан
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    equipment: { $ref: "#/components/schemas/Equipment" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+
+    /rooms/equipment/{id}:
+        patch:
+            operationId: updateEquipment
+            summary: Изменение названия типа оборудования
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [name]
+                            properties:
+                                name: { type: string }
+            responses:
+                "200":
+                    description: Оборудование обновлено
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    equipment: { $ref: "#/components/schemas/Equipment" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+            security: [{ bearerAuth: [] }]
+
+    /rooms/available:
+        get:
+            operationId: getAvailableRooms
+            summary: Поиск свободных комнат
+            parameters:
+                - name: startTime
+                  in: query
+                  required: true
+                  schema: { type: string, format: date-time }
+                - name: endTime
+                  in: query
+                  required: true
+                  schema: { type: string, format: date-time }
+                - name: capacity
+                  in: query
+                  schema: { type: integer, minimum: 1 }
+                - name: equipmentIds
+                  in: query
+                  schema: { type: string, description: "Через запятую" }
+            responses:
+                "200":
+                    description: Список свободных комнат
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    count: { type: integer }
+                                    rooms:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/RoomManagement" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+            security: [{ bearerAuth: [] }]
+
+    /settings:
+        get:
+            operationId: getSettings
+            summary: Настройки системы (рабочие часы, макс. тривалость)
+            responses:
+                "200":
+                    description: Настройки
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    settings: { $ref: "#/components/schemas/Settings" }
+            security: [{ bearerAuth: [] }]
+        put:
+            operationId: updateSettings
+            summary: Обновление настроек (только админ)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/Settings"
+            responses:
+                "200":
+                    description: Настройки обновлены
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    settings: { $ref: "#/components/schemas/Settings" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+            security: [{ bearerAuth: [] }]
+
+        Notification:
+            type: object
+            properties:
+                id: { type: integer }
+                type:
+                    type: string
+                    enum: [booking_cancelled]
+                message: { type: string }
+                isRead: { type: boolean, default: false }
+                bookingId: { type: integer, nullable: true }
+                createdAt: { type: string, format: date-time }
+
+components:
+    securitySchemes:
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+    responses:
+        BadRequest:
+            description: Неверные входные данные (проблема в problem+json)
+            content:
+                application/problem+json:
+                    schema: { $ref: "#/components/schemas/Problem" }
+        Unauthorized:
+            description: Неавторизован (Authorization отсутствует)
+            content:
+                application/problem+json:
+                    schema: { $ref: "#/components/schemas/Problem" }
+        Forbidden:
+            description: Недостаточно прав доступа
+            content:
+                application/problem+json:
+                    schema: { $ref: "#/components/schemas/Problem" }
+        NotFound:
+            description: Ресурс не найден
+            content:
+                application/problem+json:
+                    schema: { $ref: "#/components/schemas/Problem" }
+        Conflict:
+            description: Конфликт (перетин интервалов, блокировка и т.д.)
+            content:
+                application/problem+json:
+                    schema: { $ref: "#/components/schemas/Problem" }
+        RateLimited:
+            description: Превышен лимит запросов (429)
+            content:
+                application/problem+json:
+                    schema: { $ref: "#/components/schemas/Problem" }
+
+    schemas:
+        Problem:
+            type: object
+            required: [type, title, status, detail]
+            properties:
+                type:
+                    type: string
+                    description: Стабильный тип проблемы (URI)
+                title:
+                    type: string
+                status:
+                    type: integer
+                    description: HTTP-статус
+                detail:
+                    type: string
+                    description: Детальное описание (без стектрейса)
+                instance:
+                    type: string
+                    example: "POST /api/bookings"
+
+        UserLight:
+            type: object
+            properties:
+                id: { type: integer }
+                name: { type: string }
                 email: { type: string, format: email }
-                password: { type: string }
-      responses:
-        '200':
-          description: Успешный вход
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, enum: [success] }
-                  token: { type: string }
-                  user: { $ref: '#/components/schemas/UserLight' }
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                role: { type: string, enum: [employee, office_manager, admin] }
 
-  /health:
-    get:
-      operationId: healthCheck
-      summary: Проверка работоспособности (healthcheck)
-      responses:
-        '200':
-          description: Сервер работает
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, example: success }
-                  message: { type: string, example: 'Server is running successfully!' }
+        Department:
+            type: object
+            properties:
+                id: { type: integer }
+                name: { type: string }
 
-  /bookings:
-    get:
-      operationId: listBookings
-      summary: Список бронирований за период (c пагинацией)
-      parameters:
-        - name: from
-          in: query
-          required: false
-          schema: { type: string, format: date-time }
-        - name: to
-          in: query
-          required: false
-          schema: { type: string, format: date-time }
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
-        - name: offset
-          in: query
-          schema: { type: integer, minimum: 0, default: 0 }
-        - name: sort
-          in: query
-          schema:
-            type: string
-            enum: [startTime, -startTime]
-      responses:
-        '200':
-          description: Список бронирований
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, enum: [success] }
-                  count: { type: integer }
-                  total: { type: integer }
-                  bookings:
-                    type: array
-                    items: { $ref: '#/components/schemas/Booking' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-      security: [{ bearerAuth: [] }]
-    post:
-      operationId: createBooking
-      summary: Создать бронирование (включая повторюемое — серия)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [roomId, title, startTime, endTime]
-              properties:
-                roomId: { type: integer }
+        Equipment:
+            type: object
+            properties:
+                id: { type: integer }
+                name: { type: string }
+
+        Room:
+            type: object
+            properties:
+                id: { type: integer }
+                name: { type: string }
+                capacity: { type: integer }
+                isBlocked: { type: boolean }
+
+        RoomManagement:
+            allOf:
+                - $ref: "#/components/schemas/Room"
+                - type: object
+                  properties:
+                      equipment:
+                          type: array
+                          items: { $ref: "#/components/schemas/Equipment" }
+
+        Booking:
+            type: object
+            properties:
+                id: { type: integer }
                 title: { type: string }
                 startTime: { type: string, format: date-time }
                 endTime: { type: string, format: date-time }
-                participantIds:
-                  type: array
-                  items: { type: integer }
                 isRecurring: { type: boolean }
-                recurrenceCount:
-                  type: integer
-                  minimum: 2
-                  maximum: 52
-      responses:
-        '201':
-          description: Бронирование создано
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, enum: [success] }
-                  message: { type: string }
-                  count: { type: integer }
-                  bookings:
+                seriesId: { type: string, nullable: true }
+                roomId: { type: integer }
+                userId: { type: integer }
+                room: { $ref: "#/components/schemas/Room" }
+                participants:
                     type: array
-                    items: { $ref: '#/components/schemas/Booking' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-      security: [{ bearerAuth: [] }]
+                    items: { $ref: "#/components/schemas/UserLight" }
 
-  /bookings/users:
-    get:
-      operationId: listUsersForBooking
-      summary: Список сотрудников (для приглашения)
-      responses:
-        '200':
-          description: Список сотрудников
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  users:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id: { type: integer }
-                        name: { type: string }
-                        email: { type: string }
-                        department:
-                          type: object
-                          properties:
-                            name: { type: string }
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-      security: [{ bearerAuth: [] }]
-
-  /bookings/{id}:
-    patch:
-      operationId: rescheduleBooking
-      summary: Перенос бронирования (время)
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [startTime, endTime]
-              properties:
-                startTime: { type: string, format: date-time }
-                endTime: { type: string, format: date-time }
-      responses:
-        '200':
-          description: Бронирование перенесено
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-                  booking: { $ref: '#/components/schemas/Booking' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-      security: [{ bearerAuth: [] }]
-    delete:
-      operationId: cancelBooking
-      summary: Отмена бронирования (организатор или владелец)
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      responses:
-        '200':
-          description: Бронирование отменено
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      security: [{ bearerAuth: [] }]
-
-  /rooms:
-    get:
-      operationId: listRooms
-      summary: Список комнат (только офис-менеджер и админ)
-      responses:
-        '200':
-          description: Список комнат включая заблокированные
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  count: { type: integer }
-                  rooms:
-                    type: array
-                    items: { $ref: '#/components/schemas/RoomManagement' }
-      security: [{ bearerAuth: [] }]
-    post:
-      operationId: createRoom
-      summary: Создание комнаты (только офис-менеджер и админ)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, capacity]
-              properties:
-                name: { type: string, example: 'Комната 1' }
-                capacity: { type: integer, example: 10 }
-                equipmentIds:
-                  type: array
-                  items: { type: integer }
-      responses:
-        '201':
-          description: Комната создана
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-                  room: { $ref: '#/components/schemas/RoomManagement' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-      security: [{ bearerAuth: [] }]
-
-  /rooms/{id}:
-    patch:
-      operationId: updateRoom
-      summary: Изменение комнаты (название, вместимость, оборудование)
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name: { type: string }
-                capacity: { type: integer }
-                equipmentIds:
-                  type: array
-                  items: { type: integer }
-      responses:
-        '200':
-          description: Комната обновлена
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-                  room: { $ref: '#/components/schemas/RoomManagement' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      security: [{ bearerAuth: [] }]
-
-  /rooms/{id}/block:
-    patch:
-      operationId: blockRoom
-      summary: Блокировка/разблокировка комнаты
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [isBlocked]
-              properties:
-                isBlocked: { type: boolean }
-      responses:
-        '200':
-          description: Статус изменен
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-                  room:
-                    type: object
-                    properties:
-                      id: { type: integer }
-                      isBlocked: { type: boolean }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      security: [{ bearerAuth: [] }]
-
-  /rooms/equipment:
-    get:
-      operationId: listEquipment
-      summary: Список всех типов оборудования
-      responses:
-        '200':
-          description: Список оборудования
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  count: { type: integer }
-                  equipment:
-                    type: array
-                    items: { $ref: '#/components/schemas/Equipment' }
-      security: [{ bearerAuth: [] }]
-    post:
-      operationId: createEquipment
-      summary: Создание типа оборудования (только менеджер/админ)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-      responses:
-        '201':
-          description: Тип оборудования создан
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-                  equipment: { $ref: '#/components/schemas/Equipment' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
-          $ref: '#/components/responses/Conflict'
-      security: [{ bearerAuth: [] }]
-
-  /rooms/equipment/{id}:
-    patch:
-      operationId: updateEquipment
-      summary: Изменение названия типа оборудования
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-      responses:
-        '200':
-          description: Оборудование обновлено
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-                  equipment: { $ref: '#/components/schemas/Equipment' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      security: [{ bearerAuth: [] }]
-
-  /rooms/available:
-    get:
-      operationId: getAvailableRooms
-      summary: Поиск свободных комнат
-      parameters:
-        - name: startTime
-          in: query
-          required: true
-          schema: { type: string, format: date-time }
-        - name: endTime
-          in: query
-          required: true
-          schema: { type: string, format: date-time }
-        - name: capacity
-          in: query
-          schema: { type: integer, minimum: 1 }
-        - name: equipmentIds
-          in: query
-          schema: { type: string, description: 'Через запятую' }
-      responses:
-        '200':
-          description: Список свободных комнат
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  count: { type: integer }
-                  rooms:
-                    type: array
-                    items: { $ref: '#/components/schemas/RoomManagement' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-      security: [{ bearerAuth: [] }]
-
-  /settings:
-    get:
-      operationId: getSettings
-      summary: Настройки системы (рабочие часы, макс. тривалость)
-      responses:
-        '200':
-          description: Настройки
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  settings: { $ref: '#/components/schemas/Settings' }
-      security: [{ bearerAuth: [] }]
-    put:
-      operationId: updateSettings
-      summary: Обновление настроек (только админ)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Settings'
-      responses:
-        '200':
-          description: Настройки обновлены
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  message: { type: string }
-                  settings: { $ref: '#/components/schemas/Settings' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-      security: [{ bearerAuth: [] }]
-
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  responses:
-    BadRequest:
-      description: Неверные входные данные (проблема в problem+json)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    Unauthorized:
-      description: Неавторизован (Authorization отсутствует)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    Forbidden:
-      description: Недостаточно прав доступа
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    NotFound:
-      description: Ресурс не найден
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    Conflict:
-      description: Конфликт (перетин интервалов, блокировка и т.д.)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    RateLimited:
-      description: Превышен лимит запросов (429)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-
-  schemas:
-    Problem:
-      type: object
-      required: [type, title, status, detail]
-      properties:
-        type:
-          type: string
-          description: Стабильный тип проблемы (URI)
-        title:
-          type: string
-        status:
-          type: integer
-          description: HTTP-статус
-        detail:
-          type: string
-          description: Детальное описание (без стектрейса)
-        instance:
-          type: string
-          example: 'POST /api/bookings'
-
-    UserLight:
-      type: object
-      properties:
-        id: { type: integer }
-        name: { type: string }
-        email: { type: string, format: email }
-        role: { type: string, enum: [employee, office_manager, admin] }
-
-    Department:
-      type: object
-      properties:
-        id: { type: integer }
-        name: { type: string }
-
-    Equipment:
-      type: object
-      properties:
-        id: { type: integer }
-        name: { type: string }
-
-    Room:
-      type: object
-      properties:
-        id: { type: integer }
-        name: { type: string }
-        capacity: { type: integer }
-        isBlocked: { type: boolean }
-
-    RoomManagement:
-      allOf:
-        - $ref: '#/components/schemas/Room'
-        - type: object
-          properties:
-            equipment:
-              type: array
-              items: { $ref: '#/components/schemas/Equipment' }
-
-    Booking:
-      type: object
-      properties:
-        id: { type: integer }
-        title: { type: string }
-        startTime: { type: string, format: date-time }
-        endTime: { type: string, format: date-time }
-        isRecurring: { type: boolean }
-        seriesId: { type: string, nullable: true }
-        roomId: { type: integer }
-        userId: { type: integer }
-        room: { $ref: '#/components/schemas/Room' }
-        participants:
-          type: array
-          items: { $ref: '#/components/schemas/UserLight' }
-
-    Settings:
-      type: object
-      properties:
-        id: { type: integer }
-        workStart: { type: string, example: '08:00' }
-        workEnd: { type: string, example: '20:00' }
-        maxBookingHours: { type: integer, example: 4 }
+        Settings:
+            type: object
+            properties:
+                id: { type: integer }
+                workStart: { type: string, example: "08:00" }
+                workEnd: { type: string, example: "20:00" }
+                maxBookingHours: { type: integer, example: 4 }

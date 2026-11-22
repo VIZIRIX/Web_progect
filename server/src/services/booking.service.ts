@@ -3,6 +3,7 @@ import type { Booking, Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
 import { AppError } from "../api/errors.js";
 import { isManager, type UserRole } from "../middleware/auth.middleware.js";
+import { notifyBookingCancelled } from "./notification.service.js";
 import { validateBookingTime } from "../utils/booking.utils.js";
 import type {
     BookingsListFilter,
@@ -249,8 +250,8 @@ export async function rescheduleBooking(
 export async function cancelBooking(
     id: number,
     opts: { actorId: number; role: UserRole },
-): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+): Promise<{ notificationsCount: number }> {
+    return prisma.$transaction(async (tx) => {
         const booking = await tx.booking.findUnique({ where: { id } });
 
         if (!booking) {
@@ -261,7 +262,26 @@ export async function cancelBooking(
             throw new AppError("You can only cancel your own bookings", 403);
         }
 
+        const participants = await tx.bookingParticipant.findMany({
+            where: { bookingId: id },
+            select: { userId: true },
+        });
+
+        const room = await tx.room.findUnique({
+            where: { id: booking.roomId },
+            select: { name: true },
+        });
+
+        // Уведомляем организатора + участников ДО удаления брони
+        const notificationsCount = await notifyBookingCancelled(
+            tx,
+            { id: booking.id, title: booking.title, roomName: room?.name ?? "" },
+            [booking.userId, ...participants.map((participant) => participant.userId)],
+        );
+
         await tx.bookingParticipant.deleteMany({ where: { bookingId: id } });
         await tx.booking.delete({ where: { id } });
+
+        return { notificationsCount };
     });
 }

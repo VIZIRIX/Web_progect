@@ -26,6 +26,7 @@ model User {
 
   bookings     Booking[]
   participations BookingParticipant[]
+  notifications Notification[]
 }
 
 // 3. Обладнання
@@ -83,6 +84,21 @@ model BookingParticipant {
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([bookingId, userId])
+}
+
+// Повідомлення (наприклад, про примусове скасування броні)
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String   @default("booking_cancelled")
+  message   String
+  bookingId Int?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 // 7. Налаштування системи

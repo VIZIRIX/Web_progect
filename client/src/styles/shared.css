@@ -1,0 +1,99 @@
+/* Общие токены + стили для страниц бронирования (calendar + booking). */
+
+:root {
+    --primary: #4a90e2;
+    --primary-hover: #357abd;
+    --primary-light: #e2eefd;
+    --muted: #666;
+    --border: #ddd;
+    --bg-light: #f5f8fc;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family:
+        "Segoe UI",
+        system-ui,
+        -apple-system,
+        Arial,
+        sans-serif;
+    font-size: 16px;
+    background-color: gainsboro;
+    color: #333;
+    margin: 0;
+}
+
+a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Общие кнопки / поля / сообщения (делятся между страницами) */
+.primary-button {
+    background-color: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.primary-button:hover {
+    background-color: var(--primary-hover);
+}
+
+.primary-button:disabled {
+    background-color: #9bbce3;
+    cursor: not-allowed;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #555;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+}
+
+.form-group input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 4px rgba(74, 144, 226, 0.25);
+}
+
+.status-message {
+    padding: 12px;
+    margin: 12px 0;
+    background-color: var(--bg-light);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.hidden {
+    display: none;
+}

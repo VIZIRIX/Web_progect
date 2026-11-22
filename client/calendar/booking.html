@@ -1,42 +1,61 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Календарь Бронирования</title>
+        <link rel="stylesheet" href="../src/styles/shared.css" />
+        <link rel="stylesheet" href="../src/styles/calendar.css" />
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Календарь Бронирования</title>
-    <link rel="stylesheet" href="style.css">
-</head>
+    <body>
+        <main class="calendar">
+            <header class="calendar-header">
+                <h1>Календарь Бронирования</h1>
+                <div class="calendar-nav">
+                    <button id="prev-btn" type="button" aria-label="Предыдущий месяц">&lt;</button>
+                    <div class="month-year" id="month-year"></div>
+                    <button id="next-btn" type="button" aria-label="Следующий месяц">&gt;</button>
+                </div>
+                <div class="calendar-actions">
+                    <a href="/booking/booking.html" class="booking-page-button"
+                        >+ Забронировать комнату</a
+                    >
+                    <div class="notifications-menu">
+                        <button
+                            id="notifications-toggle"
+                            class="notifications-toggle"
+                            type="button"
+                            aria-label="Уведомления"
+                        >
+                            🔔<span id="notifications-count" class="notifications-badge"></span>
+                        </button>
+                        <section
+                            class="notifications-panel"
+                            id="notifications-panel"
+                            aria-label="Уведомления"
+                        ></section>
+                    </div>
+                </div>
+            </header>
 
-<body>
-    <main class="calendar">
-        <header class="calendar-header">
-            <a href="/booking/booking.html" class="booking-page-button">
-                + Забронировать комнату
-            </a>
-            <h1>Календарь Бронирования</h1>
-            <nav class="calendar-nav">
-                <button id="prev-btn" type="button" aria-label="Предыдущий месяц">&lt;</button>
-                <div class="month-year" id="month-year"></div>
-                <button id="next-btn" type="button" aria-label="Следующий месяц">&gt;</button>
-            </nav>
-        </header>
+            <section class="calendar-status" id="calendar-status" role="status"></section>
 
-        <section class="weekdays" aria-hidden="true">
-            <div>Пн</div>
-            <div>Вт</div>
-            <div>Ср</div>
-            <div>Чт</div>
-            <div>Пт</div>
-            <div>Сб</div>
-            <div>Вс</div>
-        </section>
+            <section class="weekdays" aria-hidden="true">
+                <div>Пн</div>
+                <div>Вт</div>
+                <div>Ср</div>
+                <div>Чт</div>
+                <div>Пт</div>
+                <div>Сб</div>
+                <div>Вс</div>
+            </section>
 
-        <div class="days" id="days-container" role="grid"></div>
-    </main>
+            <div class="days" id="days-container" role="grid"></div>
 
-    <script type="module" src="script.js"></script>
+            <div class="bookings-list" id="bookings-list"></div>
+        </main>
 
-</body>
-
+        <script type="module" src="../src/app/calendar/app.js"></script>
+    </body>
 </html>

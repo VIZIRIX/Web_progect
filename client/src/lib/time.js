@@ -25,6 +25,11 @@ export function getDateKey(value) {
     ].join("-");
 }
 
+// Значение для поля <input type="date"> по ISO-дате.
+export function getDateInputValue(value) {
+    return getDateKey(new Date(value));
+}
+
 export function getTimeInputValue(value) {
     const date = new Date(value);
 

@@ -7,6 +7,7 @@ import { requestIdMiddleware } from "./middleware/requestId.middleware.js";
 import { errorHandler } from "./api/errors.js";
 import authRoutes from "./routes/auth.routes.js";
 import bookingRoutes from "./routes/booking.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import roomRoutes from "./routes/room.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import { logger } from "./utils/logger.js";
@@ -46,6 +47,7 @@ export function createApp(): ReturnType<typeof express> {
 
     app.use("/api", authRoutes);
     app.use("/api/bookings", bookingRoutes);
+    app.use("/api/me/notifications", notificationRoutes);
     app.use("/api/rooms", roomRoutes);
     app.use("/api/settings", settingsRoutes);
 

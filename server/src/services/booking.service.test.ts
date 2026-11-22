@@ -76,6 +76,10 @@ type MockPrismaClient = {
     };
     bookingParticipant: {
         deleteMany: Mock;
+        findMany: Mock;
+    };
+    notification: {
+        createMany: Mock;
     };
     room: {
         findUnique: Mock;
@@ -107,6 +111,10 @@ const txMock = {
     },
     bookingParticipant: {
         deleteMany: vi.fn(),
+        findMany: vi.fn(),
+    },
+    notification: {
+        createMany: vi.fn(),
     },
 };
 
@@ -277,11 +285,32 @@ describe("rescheduleBooking", () => {
 });
 
 describe("cancelBooking", () => {
-    it("deletes booking and participants in transaction", async () => {
-        txMock.booking.findUnique.mockResolvedValue({ id: 5, userId: 42 });
+    it("deletes booking, participants and creates notifications", async () => {
+        txMock.booking.findUnique.mockResolvedValue({
+            id: 5,
+            userId: 42,
+            title: "Old",
+            roomId: 1,
+        });
+        txMock.bookingParticipant.findMany.mockResolvedValue([{ userId: 7 }]);
+        txMock.room.findUnique.mockResolvedValue({ name: "Комната 1" });
+        txMock.notification.createMany.mockResolvedValue({ count: 2 });
 
-        await cancelBooking(5, { actorId: 42, role: "employee" });
+        const result = await cancelBooking(5, { actorId: 42, role: "employee" });
 
+        expect(result.notificationsCount).toBe(2);
+        expect(txMock.notification.createMany).toHaveBeenCalledWith({
+            data: [
+                expect.objectContaining({
+                    userId: 42,
+                    type: "booking_cancelled",
+                    message: expect.stringContaining("Old"),
+                    bookingId: 5,
+                }),
+                expect.objectContaining({ userId: 7, bookingId: 5 }),
+            ],
+            skipDuplicates: true,
+        });
         expect(txMock.bookingParticipant.deleteMany).toHaveBeenCalledWith({
             where: { bookingId: 5 },
         });

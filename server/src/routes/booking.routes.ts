@@ -92,4 +92,24 @@ router.delete("/:id", verifyToken, async (req: Request, res: Response) => {
     });
 });
 
+// Принудительное скасуванне брони (офис-менеджер/администратор) + повідомлення
+router.post("/:id/cancel", verifyToken, async (req: Request, res: Response) => {
+    const user = req.user;
+
+    if (!user) {
+        throw new AppError("Authorization token missing", 401);
+    }
+
+    const id = parseBookingIdParam(req.params.id);
+    const result = await cancelBooking(id, {
+        actorId: user.userId,
+        role: user.role,
+    });
+
+    sendSuccess(res, 200, {
+        message: "Booking cancelled",
+        notificationsCount: result.notificationsCount,
+    });
+});
+
 export default router;

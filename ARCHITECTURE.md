@@ -13,8 +13,9 @@ src/
     auth.middleware.ts   # verifyToken / requireRole / isManager
     logger.middleware.ts # лог каждого запроса
   services/              # бизнес-логика (обращение к БД, транзакции, блокировки)
-    booking.service.ts   # createBooking / rescheduleBooking / cancelBooking / listBookings / listUsers
+    booking.service.ts   # createBooking / rescheduleBooking / cancelBooking (+ Уведомления) / listBookings / listUsers
     room.service.ts      # комнаты/оборудование/свободные комнаты
+    notification.service.ts # notifyBookingCancelled / listNotifications / markAsRead
     settings.service.ts  # getSettings / updateSettings
     auth.service.ts      # registerUser / loginUser (bcrypt)
   validators/            # валидация body/query/params → AppError на ошибку
@@ -22,6 +23,7 @@ src/
     booking.utils.ts     # validateBookingTime (рабочее время, Europe/Kyiv)
     logger.ts
   routes/                # тонкие маршрутизаторы: parse → service → sendSuccess
+  routes/notification.routes.ts  # GET /api/me/notifications, PATCH /api/me/notifications/:id/read
 ```
 
 Ошибки: единый формат ответа `{ status: 'error', error: message }` через `AppError` + `errorHandler`.
