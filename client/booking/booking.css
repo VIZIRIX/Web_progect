@@ -40,7 +40,7 @@ body {
 
 .back-button {
     display: inline-block;
-    color: #4A90E2;
+    color: #4a90e2;
     text-decoration: none;
     font-size: 14px;
     font-weight: bold;
@@ -94,7 +94,7 @@ body {
 }
 
 .form-group input:focus {
-    border-color: #4A90E2;
+    border-color: #4a90e2;
     box-shadow: 0 0 4px rgba(74, 144, 226, 0.25);
 }
 
@@ -135,11 +135,11 @@ body {
 }
 
 .equipment-option input {
-    accent-color: #4A90E2;
+    accent-color: #4a90e2;
 }
 
 .primary-button {
-    background-color: #4A90E2;
+    background-color: #4a90e2;
     color: white;
     border: none;
     border-radius: 6px;
@@ -151,7 +151,7 @@ body {
 }
 
 .primary-button:hover {
-    background-color: #357ABD;
+    background-color: #357abd;
 }
 
 .primary-button:disabled {
@@ -182,7 +182,7 @@ body {
 .room-card {
     background-color: #f5f8fc;
     border: 1px solid #e1e8f0;
-    border-left: 4px solid #4A90E2;
+    border-left: 4px solid #4a90e2;
     border-radius: 6px;
     padding: 15px;
 }
@@ -217,7 +217,7 @@ body {
     padding: 15px;
     margin-bottom: 20px;
     background-color: #e2eefd;
-    border-left: 4px solid #4A90E2;
+    border-left: 4px solid #4a90e2;
     border-radius: 6px;
 }
 

@@ -20,7 +20,7 @@ body {
 }
 
 .calendar-header {
-    background-color: #4A90E2;
+    background-color: #4a90e2;
     color: white;
     display: flex;
     align-items: center;
@@ -62,7 +62,7 @@ body {
 }
 
 .submit-btn {
-    background-color: #4A90E2;
+    background-color: #4a90e2;
     color: white;
     border: none;
     font-size: 16px;
@@ -74,5 +74,3 @@ body {
     padding: 12px 0;
     border-radius: 6px;
 }
-
-

@@ -11,6 +11,7 @@ body {
 .calendar {
     background-color: white;
     width: 350px;
+    max-width: calc(100% - 40px);
     border-radius: 12px;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -23,6 +24,17 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 15px 20px;
+}
+
+.calendar-header h1 {
+    font-size: 18px;
+    margin: 0;
+}
+
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .calendar-header button {
@@ -43,6 +55,8 @@ body {
 .month-year {
     font-size: 18px;
     font-weight: bold;
+    min-width: 110px;
+    text-align: center;
 }
 
 .weekdays {
@@ -88,45 +102,6 @@ body {
 
 .day.empty {
     cursor: default;
-}
-.calendar-status {
-    text-align: center;
-    padding: 12px;
-    font-size: 14px;
-    color: #555;
-    background-color: #f8faff;
-}
-
-.day {
-    position: relative;
-}
-
-.day.has-bookings {
-    background-color: #e2eefd;
-    color: #245fa6;
-    font-weight: bold;
-}
-
-.day .booking-count {
-    position: absolute;
-    right: -3px;
-    bottom: -3px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 2px;
-    border-radius: 50%;
-    background-color: #4A90E2;
-    color: white;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-}
-
-.day.today.has-bookings {
-    background-color: #4A90E2;
-    color: white;
 }
 
 .calendar-status {
@@ -289,4 +264,66 @@ body {
 .reschedule-form button {
     padding: 8px;
     border-radius: 5px;
+}
+
+/* Адаптация под маленькие экраны */
+@media (max-width: 420px) {
+    body {
+        padding: 10px;
+    }
+
+    .calendar {
+        width: 100%;
+    }
+
+    .calendar-header {
+        padding: 10px 12px;
+    }
+
+    .calendar-header h1 {
+        font-size: 20px;
+    }
+
+    .month-year {
+        font-size: 15px;
+        min-width: 90px;
+    }
+
+    .calendar-header button {
+        font-size: 16px;
+        padding: 6px 10px;
+    }
+
+    .weekdays,
+    .day {
+        font-size: 11px;
+    }
+
+    .weekdays {
+        padding: 8px 0;
+    }
+
+    .days {
+        grid-template-rows: repeat(6, 32px);
+        gap: 3px;
+        padding: 6px;
+    }
+
+    .bookings-list {
+        padding: 15px;
+    }
+
+    .bookings-list h2 {
+        font-size: 18px;
+    }
+
+    .booking-card h3,
+    .booking-card p {
+        font-size: 13px;
+    }
+
+    .cancel-booking-button {
+        padding: 8px;
+        font-size: 13px;
+    }
 }

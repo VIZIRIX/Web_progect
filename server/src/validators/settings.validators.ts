@@ -1,4 +1,4 @@
-import { AppError } from '../api/errors.js';
+import { AppError } from "../api/errors.js";
 
 export interface SettingsUpdateInput {
     workStart: string;
@@ -7,9 +7,7 @@ export interface SettingsUpdateInput {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' &&
-        value !== null &&
-        !Array.isArray(value);
+    return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -21,12 +19,12 @@ function toMinutes(value: string): number {
 export function validateSettingsUpdate(body: unknown): SettingsUpdateInput {
     if (
         !isRecord(body) ||
-        typeof body.workStart !== 'string' ||
-        typeof body.workEnd !== 'string' ||
+        typeof body.workStart !== "string" ||
+        typeof body.workEnd !== "string" ||
         !timePattern.test(body.workStart) ||
         !timePattern.test(body.workEnd)
     ) {
-        throw new AppError('Invalid working hours', 400);
+        throw new AppError("Invalid working hours", 400);
     }
 
     const startMinutes = toMinutes(body.workStart);
@@ -34,17 +32,17 @@ export function validateSettingsUpdate(body: unknown): SettingsUpdateInput {
 
     if (
         endMinutes <= startMinutes ||
-        typeof body.maxBookingHours !== 'number' ||
+        typeof body.maxBookingHours !== "number" ||
         !Number.isSafeInteger(body.maxBookingHours) ||
         body.maxBookingHours < 1 ||
         body.maxBookingHours > 12
     ) {
-        throw new AppError('Invalid settings values', 400);
+        throw new AppError("Invalid settings values", 400);
     }
 
     return {
         workStart: body.workStart,
         workEnd: body.workEnd,
-        maxBookingHours: body.maxBookingHours
+        maxBookingHours: body.maxBookingHours,
     };
 }

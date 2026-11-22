@@ -3,12 +3,12 @@
 // - при 401/403 — центральный выход на страницу входа;
 // - ошибки возвращают data.error сервера.
 
-export const getToken = () => localStorage.getItem('token');
+export const getToken = () => localStorage.getItem("token");
 
 export function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/";
 }
 
 async function apiFetch(url, options = {}) {
@@ -18,19 +18,19 @@ async function apiFetch(url, options = {}) {
         ...options,
         headers: {
             ...(options.headers || {}),
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
     });
 
     const data = await response.json().catch(() => ({}));
 
     if (response.status === 401 || response.status === 403) {
         logout();
-        throw new Error('Необходимо войти в систему заново');
+        throw new Error("Необходимо войти в систему заново");
     }
 
     if (!response.ok) {
-        throw new Error(data.error || `Ошибка сервера (${response.status})`);
+        throw new Error(data.detail ?? data.error ?? `Ошибка сервера (${response.status})`);
     }
 
     return data;
@@ -38,16 +38,18 @@ async function apiFetch(url, options = {}) {
 
 export const apiGet = (url) => apiFetch(url);
 
-export const apiPost = (url, body) => apiFetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-});
+export const apiPost = (url, body) =>
+    apiFetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
 
-export const apiPatch = (url, body) => apiFetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-});
+export const apiPatch = (url, body) =>
+    apiFetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
 
-export const apiDelete = (url) => apiFetch(url, { method: 'DELETE' });
+export const apiDelete = (url) => apiFetch(url, { method: "DELETE" });

@@ -9,18 +9,20 @@
 </head>
 
 <body>
-    <div class="calendar">
-        <h1 style="text-align: center;">Календарь Бронирования</h1>
-        <a href="/booking/booking.html" class="booking-page-button">
-            + Забронировать комнату
-        </a>
-        <div class="calendar-header">
-            <button id="prev-btn">&lt;</button>
-            <div class="month-year" id="month-year"></div>
-            <button id="next-btn">&gt;</button>
-        </div>
+    <main class="calendar">
+        <header class="calendar-header">
+            <a href="/booking/booking.html" class="booking-page-button">
+                + Забронировать комнату
+            </a>
+            <h1>Календарь Бронирования</h1>
+            <nav class="calendar-nav">
+                <button id="prev-btn" type="button" aria-label="Предыдущий месяц">&lt;</button>
+                <div class="month-year" id="month-year"></div>
+                <button id="next-btn" type="button" aria-label="Следующий месяц">&gt;</button>
+            </nav>
+        </header>
 
-        <div class="weekdays">
+        <section class="weekdays" aria-hidden="true">
             <div>Пн</div>
             <div>Вт</div>
             <div>Ср</div>
@@ -28,10 +30,10 @@
             <div>Пт</div>
             <div>Сб</div>
             <div>Вс</div>
-        </div>
+        </section>
 
-        <div class="days" id="days-container"></div>
-    </div>
+        <div class="days" id="days-container" role="grid"></div>
+    </main>
 
     <script type="module" src="script.js"></script>
 

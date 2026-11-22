@@ -4,25 +4,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Календарь Бронирования</title>
-  <script type="module" crossorigin src="/assets/calendar-CpO3kzXR.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/api-CCO_b664.js">
-  <link rel="stylesheet" crossorigin href="/assets/calendar-CLjj98xQ.css">
+    <title>Календарь Бронирования</title>
+  <script type="module" crossorigin src="/assets/calendar-Bg89tUJu.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/api-CehvFGBj.js">
+  <link rel="stylesheet" crossorigin href="/assets/calendar-Db83BDpV.css">
 </head>
 
 <body>
-    <div class="calendar">
-        <h1 style="text-align: center;">Календарь Бронирования</h1>
-        <a href="/booking/booking.html" class="booking-page-button">
-            + Забронировать комнату
-        </a>
-        <div class="calendar-header">
-            <button id="prev-btn">&lt;</button>
-            <div class="month-year" id="month-year"></div>
-            <button id="next-btn">&gt;</button>
-        </div>
+    <main class="calendar">
+        <header class="calendar-header">
+            <a href="/booking/booking.html" class="booking-page-button">
+                + Забронировать комнату
+            </a>
+            <h1>Календарь Бронирования</h1>
+            <nav class="calendar-nav">
+                <button id="prev-btn" type="button" aria-label="Предыдущий месяц">&lt;</button>
+                <div class="month-year" id="month-year"></div>
+                <button id="next-btn" type="button" aria-label="Следующий месяц">&gt;</button>
+            </nav>
+        </header>
 
-        <div class="weekdays">
+        <section class="weekdays" aria-hidden="true">
             <div>Пн</div>
             <div>Вт</div>
             <div>Ср</div>
@@ -30,11 +32,11 @@
             <div>Пт</div>
             <div>Сб</div>
             <div>Вс</div>
-        </div>
+        </section>
 
-        <div class="days" id="days-container"></div>
-    </div>
-
+        <div class="days" id="days-container" role="grid"></div>
+    </main>
+
 
 </body>
 
