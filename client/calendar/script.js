@@ -10,7 +10,7 @@ const nextBtn = document.getElementById('next-btn');
 const calendar = document.querySelector('.calendar');
 const calendarHeader = document.querySelector('.calendar-header');
 
-const token = localStorage.getItem('token');
+import { apiDelete, apiGet, apiPatch, getToken } from '../src/lib/api.js';
 
 let currentUser = null;
 
@@ -23,7 +23,7 @@ try {
 const currentUserId = Number(currentUser?.id ?? currentUser?.userId);
 const currentUserRole = currentUser?.role;
 
-if (!token || !currentUser) {
+if (!getToken() || !currentUser) {
     window.location.href = '/';
 }
 
@@ -65,12 +65,6 @@ if (calendar) {
 // ==============================
 // Вспомогательные функции
 // ==============================
-
-function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
-}
 
 function getDateKey(value) {
     const date = new Date(value);
@@ -119,16 +113,6 @@ function getTimeInputValue(value) {
     ].join(':');
 }
 
-async function readResponse(response) {
-    const text = await response.text();
-
-    try {
-        return text ? JSON.parse(text) : {};
-    } catch {
-        return {};
-    }
-}
-
 // ==============================
 // Загрузка бронирований
 // ==============================
@@ -145,25 +129,9 @@ async function loadBookings() {
     statusElement.textContent = 'Загрузка бронирований...';
 
     try {
-        const response = await fetch(
-            `/api/bookings?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            }
+        const data = await apiGet(
+            `/api/bookings?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
         );
-
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-
-        const data = await readResponse(response);
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Не удалось загрузить бронирования');
-        }
 
         if (!Array.isArray(data.bookings)) {
             throw new Error('Сервер вернул некорректный список бронирований');
@@ -364,30 +332,10 @@ function showRescheduleForm(booking, card) {
         saveButton.textContent = 'Сохранение...';
 
         try {
-            const response = await fetch(`/api/bookings/${booking.id}`, {
-                method: 'PATCH',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    startTime: start.toISOString(),
-                    endTime: end.toISOString()
-                })
+            await apiPatch(`/api/bookings/${booking.id}`, {
+                startTime: start.toISOString(),
+                endTime: end.toISOString()
             });
-
-            if (response.status === 401) {
-                logout();
-                return;
-            }
-
-            const data = await readResponse(response);
-
-            if (!response.ok) {
-                throw new Error(
-                    data.error || 'Не удалось перенести бронирование'
-                );
-            }
 
             // Переключаем календарь на месяц новой даты
             currentDate = new Date(
@@ -431,25 +379,7 @@ async function cancelBooking(booking, button) {
     button.textContent = 'Отмена...';
 
     try {
-        const response = await fetch(`/api/bookings/${booking.id}`, {
-            method: 'DELETE',
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
-
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-
-        const data = await readResponse(response);
-
-        if (!response.ok) {
-            throw new Error(
-                data.error || 'Не удалось отменить бронирование'
-            );
-        }
+        await apiDelete(`/api/bookings/${booking.id}`);
 
         await loadBookings();
 
@@ -564,7 +494,7 @@ nextBtn?.addEventListener('click', () => {
 // Запуск
 // ==============================
 
-if (token && currentUser) {
+if (getToken() && currentUser) {
     loadBookings();
 }
 

@@ -7,6 +7,7 @@ export default defineConfig({
             input: {
                 main: resolve(__dirname, 'index.html'),
                 calendar: resolve(__dirname, 'calendar/booking.html'),
+                booking: resolve(__dirname, 'booking/booking.html'),
             },
         },
     },

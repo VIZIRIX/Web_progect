@@ -1,9 +1,8 @@
-
-import type { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
+import type { JwtPayload } from 'jsonwebtoken';
+import { prisma } from '../db.js';
+import { AppError } from '../api/errors.js';
 
 // Допустимые роли системы
 export const USER_ROLES = {
@@ -21,14 +20,12 @@ export interface JwtPayloadPayload {
     role: UserRole;
 }
 
-// Проверка существования роли
 function isUserRole(role: string): role is UserRole {
     return Object.values(USER_ROLES).includes(
         role as UserRole
     );
 }
 
-// Типизация пользователя в Express
 declare global {
     namespace Express {
         interface Request {
@@ -37,61 +34,56 @@ declare global {
     }
 }
 
-// Проверка авторизации пользователя
+/** Офис-менеджеры и администраторы имеют повышенные права. */
+export function isManager(role: UserRole): boolean {
+    return role === USER_ROLES.OFFICE_MANAGER ||
+        role === USER_ROLES.ADMIN;
+}
+
+/** Проверка авторизации пользователя. Бросает AppError при ошибке. */
 export async function verifyToken(
     req: Request,
-    res: Response,
+    _res: Response,
     next: NextFunction
 ): Promise<void> {
-
-    const secret = process.env.JWT_SECRET;
-
-    if (!secret) {
-        res.status(500).json({
-            error: 'Server JWT configuration error'
-        });
-        return;
-    }
-
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.status(401).json({
-            error: 'Authorization token missing'
-        });
-        return;
-    }
-
-    const token = authHeader.slice(7);
-
-    // Проверяем JWT
-    let decoded;
-
     try {
-        decoded = jwt.verify(token, secret);
-    } catch {
-        res.status(403).json({
-            error: 'Invalid or expired token'
-        });
-        return;
-    }
+        const secret = process.env.JWT_SECRET;
 
-    if (
-        typeof decoded === 'string' ||
-        typeof decoded.userId !== 'number' ||
-        typeof decoded.email !== 'string'
-    ) {
-        res.status(403).json({
-            error: 'Invalid token payload'
-        });
-        return;
-    }
+        if (!secret) {
+            throw new AppError('Server JWT configuration error', 500);
+        }
 
-    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            throw new AppError('Authorization token missing', 401);
+        }
+
+        const token = authHeader.slice(7);
+
+        let decoded: string | JwtPayload;
+
+        try {
+            decoded = jwt.verify(token, secret);
+        } catch {
+            throw new AppError('Invalid or expired token', 403);
+        }
+
+        if (typeof decoded === 'string') {
+            throw new AppError('Invalid token payload', 403);
+        }
+
+        const userId = decoded.userId;
+        const email = decoded.email;
+
+        if (typeof userId !== 'number' || typeof email !== 'string') {
+            throw new AppError('Invalid token payload', 403);
+        }
+
         // Получаем актуальные данные пользователя из базы
         const user = await prisma.user.findUnique({
             where: {
-                id: decoded.userId
+                id: userId
             },
             select: {
                 id: true,
@@ -100,22 +92,15 @@ export async function verifyToken(
             }
         });
 
-        if (!user || user.email !== decoded.email) {
-            res.status(401).json({
-                error: 'User not found or account changed'
-            });
-            return;
+        if (!user || user.email !== email) {
+            throw new AppError('User not found or account changed', 401);
         }
 
         // Проверяем актуальную роль
         if (!isUserRole(user.role)) {
-            res.status(403).json({
-                error: 'User role is not recognized'
-            });
-            return;
+            throw new AppError('User role is not recognized', 403);
         }
 
-        // Сохраняем актуальные данные в запросе
         req.user = {
             userId: user.id,
             email: user.email,
@@ -123,39 +108,29 @@ export async function verifyToken(
         };
 
         next();
-
-    } catch (error: unknown) {
-        console.error('Error verifying user:', error);
-
-        res.status(500).json({
-            error: 'Internal server error'
-        });
+    } catch (err) {
+        next(err);
     }
 }
 
-// Проверка разрешённых ролей
+/** Проверка разрешённых ролей. */
 export function requireRole(...allowedRoles: UserRole[]) {
     return (
         req: Request,
-        res: Response,
+        _res: Response,
         next: NextFunction
     ): void => {
-
         if (!req.user) {
-            res.status(401).json({
-                error: 'Authentication required'
-            });
-            return;
+            throw new AppError('Authentication required', 401);
         }
 
         if (!allowedRoles.includes(req.user.role)) {
-            res.status(403).json({
-                error: 'You do not have permission to perform this action'
-            });
-            return;
+            throw new AppError(
+                'You do not have permission to perform this action',
+                403
+            );
         }
 
         next();
     };
 }
-

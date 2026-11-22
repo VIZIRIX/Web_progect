@@ -1,7 +1,8 @@
 
-const token = localStorage.getItem('token');
+import { apiGet, apiPost, getToken } from '../src/lib/api.js';
+import { getBookingDateTime, getLocalDate } from '../src/lib/time.js';
 
-if (!token) {
+if (!getToken()) {
     window.location.href = '/';
 }
 
@@ -34,55 +35,8 @@ recurringCheckbox.addEventListener('change', () => {
     );
 });
 
-// Выход из аккаунта
-function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
-}
-
-// Запросы к серверу
-async function apiRequest(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            ...options.headers,
-            Authorization: `Bearer ${token}`
-        }
-    });
-
-    if (response.status === 401 || response.status === 403) {
-        logout();
-        throw new Error('Необходимо войти в систему заново');
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.error || 'Ошибка сервера');
-    }
-
-    return data;
-}
-
-// Сегодняшняя дата
-function getLocalDate() {
-    const now = new Date();
-
-    return [
-        now.getFullYear(),
-        String(now.getMonth() + 1).padStart(2, '0'),
-        String(now.getDate()).padStart(2, '0')
-    ].join('-');
-}
-
 dateInput.min = getLocalDate();
 dateInput.value = getLocalDate();
-
-// Преобразование даты и времени
-function getBookingDateTime(date, time) {
-    return new Date(`${date}T${time}`).toISOString();
-}
 
 // Получение выбранного оборудования
 function getSelectedEquipment() {
@@ -108,7 +62,7 @@ function clearSelectedRoom() {
 // Загрузка оборудования
 async function loadEquipment() {
     try {
-        const data = await apiRequest('/api/rooms/equipment');
+        const data = await apiGet('/api/rooms/equipment');
 
         equipmentList.innerHTML = '';
 
@@ -138,7 +92,7 @@ async function loadEquipment() {
 // Загрузка сотрудников
 async function loadUsers() {
     try {
-        const data = await apiRequest('/api/bookings/users');
+        const data = await apiGet('/api/bookings/users');
 
         participantsList.innerHTML = '';
 
@@ -214,7 +168,7 @@ searchForm.addEventListener('submit', async event => {
     searchStatus.textContent = 'Поиск свободных комнат...';
 
     try {
-        const data = await apiRequest(
+        const data = await apiGet(
             `/api/rooms/available?${params}`
         );
 
@@ -311,22 +265,16 @@ bookingForm.addEventListener('submit', async event => {
     submitButton.textContent = 'Сохранение...';
 
     try {
-        await apiRequest('/api/bookings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                roomId: selectedRoom.id,
-                title,
-                startTime: getBookingDateTime(dateInput.value, startInput.value),
-                endTime: getBookingDateTime(dateInput.value, endInput.value),
-                participantIds: getSelectedParticipants(),
-isRecurring: recurringCheckbox.checked,
-recurrenceCount: recurringCheckbox.checked
-    ? Number(recurrenceCountInput.value)
-    : 1
-            })
+        await apiPost('/api/bookings', {
+            roomId: selectedRoom.id,
+            title,
+            startTime: getBookingDateTime(dateInput.value, startInput.value),
+            endTime: getBookingDateTime(dateInput.value, endInput.value),
+            participantIds: getSelectedParticipants(),
+            isRecurring: recurringCheckbox.checked,
+            recurrenceCount: recurringCheckbox.checked
+                ? Number(recurrenceCountInput.value)
+                : 1
         });
 
         bookingStatus.textContent = 'Бронирование успешно создано!';
