@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Адміністрування</title>
+        <link rel="stylesheet" href="../src/styles/shared.css" />
+        <link rel="stylesheet" href="../src/styles/admin.css" />
+    </head>
+    <body>
+        <main class="admin-page">
+            <header class="page-header">
+                <a href="/calendar/booking.html" class="back-button">← К календарю</a>
+                <h1>Адміністрування</h1>
+                <p>Відділи, права співробітників та налаштування системи</p>
+            </header>
+
+            <!-- Налаштування системи: робочі години і макс тривалість бронювання -->
+            <section class="admin-section">
+                <h2>Налаштування системи</h2>
+                <form id="settings-form" class="admin-form">
+                    <div class="admin-form-grid">
+                        <label>
+                            Робочий початок <input type="time" id="settings-work-start" />
+                        </label>
+                        <label>
+                            Робочий закінчення <input type="time" id="settings-work-end" />
+                        </label>
+                        <label>
+                            Макс. тривалість бронювання (год)
+                            <input type="number" id="settings-max-hours" min="1" max="12" step="0.5" />
+                        </label>
+                    </div>
+                    <button type="submit" class="primary-button">Зберегти налаштування</button>
+                    <div id="settings-status" class="status-message"></div>
+                </form>
+            </section>
+
+            <!-- Відділи: керування відділами (список з пошуком і розгорненням) -->
+            <section class="admin-section">
+                <div class="section-head">
+                    <h2>Відділи</h2>
+                    <div class="list-controls">
+                        <input type="search" id="departments-search" placeholder="Пошук відділу по названию" />
+                    </div>
+                </div>
+                <form id="department-form" class="admin-form">
+                    <label>
+                        Назва відділу
+                        <input type="text" id="department-name" required />
+                    </label>
+                    <button type="submit" class="primary-button">Додати відділ</button>
+                </form>
+                <div id="departments-list" class="admin-list"></div>
+                <div id="departments-status" class="status-message"></div>
+            </section>
+
+            <!-- Сотрудники та права: список з пошуком і розгорненням -->
+            <section class="admin-section">
+                <div class="section-head">
+                    <h2>Сотрудники та права</h2>
+                    <div class="list-controls">
+                        <input type="search" id="users-search" placeholder="Пошук по імені або пошті" />
+                    </div>
+                </div>
+                <div id="users-table"></div>
+                <div id="users-status" class="status-message"></div>
+            </section>
+        </main>
+        <script type="module" src="../src/app/admin/admin.js"></script>
+    </body>
+</html>

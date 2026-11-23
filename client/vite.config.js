@@ -8,6 +8,8 @@ export default defineConfig({
                 main: resolve(__dirname, "index.html"),
                 calendar: resolve(__dirname, "calendar/booking.html"),
                 booking: resolve(__dirname, "booking/booking.html"),
+                manager: resolve(__dirname, "manager/manager.html"),
+                admin: resolve(__dirname, "admin/admin.html"),
             },
         },
     },

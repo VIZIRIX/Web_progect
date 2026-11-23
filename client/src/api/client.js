@@ -45,6 +45,13 @@ export const apiPost = (url, body) =>
         body: JSON.stringify(body),
     });
 
+export const apiPut = (url, body) =>
+    apiFetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+
 export const apiPatch = (url, body) =>
     apiFetch(url, {
         method: "PATCH",

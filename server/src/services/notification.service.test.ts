@@ -44,12 +44,28 @@ beforeEach(() => {
 });
 
 describe("notifyBookingCancelled", () => {
+    const formattedDate = new Intl.DateTimeFormat("uk-UA", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(new Date(2026, 10, 23, 9, 0));
+
     it("creates notifications for all recipients with skipDuplicates", async () => {
         mockClient.notification.createMany.mockResolvedValue({ count: 3 });
 
+        const startTime = new Date(2026, 10, 23, 9, 0);
+
         const count = await notifyBookingCancelled(
             txMock as never,
-            { id: 10, title: "Совещание", roomName: "Комната 1" },
+            {
+                id: 10,
+                title: "Совещание",
+                roomName: "Комната 1",
+                startTime,
+                cancellerName: "Иван Иванов",
+            },
             [1, 2, 3],
         );
 
@@ -67,12 +83,33 @@ describe("notifyBookingCancelled", () => {
             ],
             skipDuplicates: true,
         });
+
+        // Повідомлення містить назву кімнати, дату бронювання та ім'я того, хто скасував бронь
+        expect(mockClient.notification.createMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.arrayContaining([
+                    expect.objectContaining({
+                        message: expect.stringMatching(
+                            new RegExp(
+                                `Совещание.*Комната 1.*${formattedDate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*Иван Иванов`,
+                            ),
+                        ),
+                    }),
+                ]),
+            }),
+        );
     });
 
     it("returns 0 when there are no recipients", async () => {
         const count = await notifyBookingCancelled(
             txMock as never,
-            { id: 1, title: "t", roomName: "" },
+            {
+                id: 1,
+                title: "t",
+                roomName: "",
+                startTime: new Date(),
+                cancellerName: "Іван",
+            },
             [],
         );
 

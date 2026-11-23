@@ -12,6 +12,7 @@ import {
     updateEquipment,
     updateRoom,
 } from "../services/room.service.js";
+import { getRoomUtilization } from "../services/report.service.js";
 import {
     parseAvailableRoomsQuery,
     parseEquipmentIdParam,
@@ -21,6 +22,7 @@ import {
     validateRoomCreateInput,
     validateRoomUpdateInput,
 } from "../validators/room.validators.js";
+import { parseUtilizationFilter } from "../validators/report.validators.js";
 
 const router: Router = Router();
 
@@ -125,6 +127,24 @@ router.patch(
         sendSuccess(res, 200, {
             message: "Equipment updated successfully",
             equipment,
+        });
+    },
+);
+
+// Звіт завантаженості кімнат (офіс-менеджер / адміністратор)
+router.get(
+    "/utilization",
+    verifyToken,
+    requireRole(USER_ROLES.OFFICE_MANAGER, USER_ROLES.ADMIN),
+    async (req: Request, res: Response) => {
+        const filter = parseUtilizationFilter(req.query);
+        const rooms = await getRoomUtilization(filter);
+
+        sendSuccess(res, 200, {
+            count: rooms.length,
+            from: filter.from?.toISOString() ?? null,
+            to: filter.to?.toISOString() ?? null,
+            rooms,
         });
     },
 );

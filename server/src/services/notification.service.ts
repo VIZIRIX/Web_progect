@@ -2,8 +2,25 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 
 /**
- * Создаёт уведомления о скасуванні броні (вызывается внутри транзакции).
- * Участники и организатор получают уведомление — список из получателей.
+ * Формат дати та часу для повідомлень (наприклад "23.11.2026, 09:00").
+ */
+function formatBookingStart(startTime: Date): string {
+    const formatter = new Intl.DateTimeFormat('uk-UA', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
+    return formatter.format(startTime);
+}
+
+/**
+ * Створює уведомлення о скасуванні броні (вызывается внутри транзакцію).
+ * Учасники та організатор отримують уведомлення — список з одержувачів.
+ * Повідомлення містить тему бронювання, назву кімнати, дату бронювання
+ * та ім'я того, хто скасував бронь.
  */
 export async function notifyBookingCancelled(
     tx: Prisma.TransactionClient,
@@ -11,6 +28,8 @@ export async function notifyBookingCancelled(
         id: number;
         title: string;
         roomName: string;
+        startTime: Date;
+        cancellerName: string;
     },
     recipientIds: number[]
 ): Promise<number> {
@@ -18,11 +37,16 @@ export async function notifyBookingCancelled(
         return 0;
     }
 
+    const message =
+        `Ваша бронь «${booking.title}» (комната: ${booking.roomName}, ` +
+        `дата: ${formatBookingStart(booking.startTime)}) ` +
+        `была отменена пользователем ${booking.cancellerName}.`;
+
     const result = await tx.notification.createMany({
         data: recipientIds.map(userId => ({
             userId,
             type: 'booking_cancelled',
-            message: `Ваша бронь «${booking.title}» (комната: ${booking.roomName}) была отменена.`,
+            message,
             bookingId: booking.id
         })),
         skipDuplicates: true

@@ -398,7 +398,29 @@ body {
         padding: 6px 10px;
     }
 
-    .calendar-actions {
+    .manager-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.nav-link {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+    text-decoration: none;
+}
+
+.calendar-actions {
         flex-wrap: wrap;
         justify-content: center;
     }

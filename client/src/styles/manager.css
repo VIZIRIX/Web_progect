@@ -1,0 +1,287 @@
+@import "./shared.css";
+
+.manager-page {
+    background-color: #fff;
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+}
+
+.page-header {
+    padding: 25px 30px;
+    border-bottom: 1px solid #ddd;
+    position: relative;
+}
+
+.page-header h1 {
+    text-align: center;
+    margin: 10px 0 0;
+    font-size: 26px;
+}
+
+.back-button {
+    display: inline-block;
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.back-button:hover {
+    text-decoration: underline;
+}
+
+.admin-link {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.manager-section {
+    padding: 24px 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.section-head h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.list-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.list-controls input[type="search"] {
+    padding: 9px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+/* Список з розгорненням / пошуком */
+.expandable-list-toggle {
+    margin-top: 10px;
+}
+
+/* Кімнати */
+.room-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.room-card {
+    background-color: var(--bg-light);
+    border: 1px solid #e1e8f0;
+    border-left: 4px solid var(--primary);
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.room-card.blocked {
+    opacity: 0.6;
+}
+
+.room-card header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.room-card h3 {
+    margin: 0;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.room-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.ghost-button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--muted);
+    transition:
+        background 0.2s,
+        border-color 0.2s;
+}
+
+.ghost-button:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.badge-blocked {
+    background: #e74c3c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+
+.room-meta {
+    color: #555;
+    font-size: 14px;
+    margin: 8px 0;
+}
+
+.room-equipment-line {
+    color: #555;
+    font-size: 14px;
+    margin: 8px 0;
+}
+
+.room-equipment-tag {
+    display: inline-block;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px 8px;
+    margin: 2px 4px 2px 0;
+}
+
+.room-edit-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.room-edit-form input,
+.room-edit-form select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.room-edit-equipment-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.equipment-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #e1e8f0;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.equipment-option input {
+    accent-color: var(--primary);
+}
+
+.room-create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 20px;
+}
+
+.room-create-form h3 {
+    font-size: 15px;
+}
+
+/* Звіт завантаженості */
+.manager-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.manager-table th,
+.manager-table td {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 8px;
+    text-align: left;
+    font-size: 14px;
+}
+
+.manager-table th {
+    font-size: 12px;
+    color: #666;
+}
+
+.util-bar {
+    width: 140px;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+.util-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s;
+}
+
+/* Адаптація */
+@media (max-width: 600px) {
+    body {
+        padding: 15px 10px;
+    }
+
+    .page-header {
+        padding: 20px 15px;
+    }
+
+    .admin-link {
+        right: 15px;
+    }
+
+    .manager-section {
+        padding: 20px 15px;
+    }
+}

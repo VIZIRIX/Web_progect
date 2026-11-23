@@ -86,6 +86,7 @@ type MockPrismaClient = {
     };
     user: {
         findMany: Mock;
+        findUnique: Mock;
     };
     systemSettings: {
         upsert: Mock;
@@ -100,7 +101,7 @@ const txMock = {
     $queryRaw: vi.fn(),
     room: { findUnique: vi.fn() },
     systemSettings: { upsert: vi.fn() },
-    user: { findMany: vi.fn() },
+    user: { findMany: vi.fn(), findUnique: vi.fn() },
     booking: {
         findFirst: vi.fn(),
         findUnique: vi.fn(),
@@ -129,6 +130,7 @@ beforeEach(() => {
     txMock.room.findUnique.mockResolvedValue({ isBlocked: false });
     txMock.systemSettings.upsert.mockResolvedValue(settingsMock);
     txMock.user.findMany.mockResolvedValue([{ id: 7 }]);
+    txMock.user.findUnique.mockResolvedValue({ name: "Іван Іванов" });
     txMock.booking.findFirst.mockResolvedValue(null);
     txMock.booking.findUnique.mockResolvedValue(null);
     mockClient.booking.findUnique.mockResolvedValue(null);
@@ -291,6 +293,8 @@ describe("cancelBooking", () => {
             userId: 42,
             title: "Old",
             roomId: 1,
+            startTime: new Date(2026, 10, 23, 9, 0),
+            endTime: new Date(2026, 10, 23, 10, 0),
         });
         txMock.bookingParticipant.findMany.mockResolvedValue([{ userId: 7 }]);
         txMock.room.findUnique.mockResolvedValue({ name: "Комната 1" });
@@ -311,6 +315,20 @@ describe("cancelBooking", () => {
             ],
             skipDuplicates: true,
         });
+
+        // Повідомлення містить ім'я того, хто скасував, та комнату
+        expect(txMock.notification.createMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.arrayContaining([
+                    expect.objectContaining({
+                        message: expect.stringContaining("Іван Іванов"),
+                    }),
+                    expect.objectContaining({
+                        message: expect.stringContaining("Комната 1"),
+                    }),
+                ]),
+            }),
+        );
         expect(txMock.bookingParticipant.deleteMany).toHaveBeenCalledWith({
             where: { bookingId: 5 },
         });

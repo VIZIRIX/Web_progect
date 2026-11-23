@@ -272,10 +272,21 @@ export async function cancelBooking(
             select: { name: true },
         });
 
+        const canceller = await tx.user.findUnique({
+            where: { id: opts.actorId },
+            select: { name: true },
+        });
+
         // Уведомляем организатора + участников ДО удаления брони
         const notificationsCount = await notifyBookingCancelled(
             tx,
-            { id: booking.id, title: booking.title, roomName: room?.name ?? "" },
+            {
+                id: booking.id,
+                title: booking.title,
+                roomName: room?.name ?? "",
+                startTime: booking.startTime,
+                cancellerName: canceller?.name ?? "Неизвестный пользователь",
+            },
             [booking.userId, ...participants.map((participant) => participant.userId)],
         );
 

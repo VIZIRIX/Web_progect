@@ -660,6 +660,216 @@ paths:
                 bookingId: { type: integer, nullable: true }
                 createdAt: { type: string, format: date-time }
 
+    /departments:
+        get:
+            operationId: listDepartments
+            summary: Список всех відділів (только администратор)
+            responses:
+                "200":
+                    description: Список відділів
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    count: { type: integer }
+                                    departments:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/Department" }
+            security: [{ bearerAuth: [] }]
+        post:
+            operationId: createDepartment
+            summary: Создание відділу (администратор)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [name]
+                            properties:
+                                name: { type: string }
+            responses:
+                "201":
+                    description: Создан
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    department: { $ref: "#/components/schemas/Department" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+
+    /departments/{id}:
+        patch:
+            operationId: updateDepartment
+            summary: Обновление відділу (администратор)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name: { type: string }
+            responses:
+                "200":
+                    description: Відділ оновлено
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    department: { $ref: "#/components/schemas/Department" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+        delete:
+            operationId: deleteDepartment
+            summary: Удаление відділу (адміністратор; відділ не повинен мати співробітників)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            responses:
+                "200":
+                    description: Відділ видалено
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+            security: [{ bearerAuth: [] }]
+
+    /users:
+        get:
+            operationId: listUsersForManagement
+            summary: Список всех сотрудников с ролями (только администратор)
+            responses:
+                "200":
+                    description: Список пользователей
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    count: { type: integer }
+                                    users:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/UserForManagement" }
+            security: [{ bearerAuth: [] }]
+
+    /users/{id}/role:
+        patch:
+            operationId: setUserRole
+            summary: Заміна ролі сотрудника (адміністратор)
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema: { type: integer }
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [role]
+                            properties:
+                                role:
+                                    type: string
+                                    enum: [employee, office_manager, admin]
+            responses:
+                "200":
+                    description: Роль оновлена
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    message: { type: string }
+                                    user:
+                                        type: object
+                                        properties:
+                                            id: { type: integer }
+                                            role: { type: string, enum: [employee, office_manager, admin] }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+            security: [{ bearerAuth: [] }]
+
+    /rooms/utilization:
+        get:
+            operationId: getRoomUtilization
+            summary: Звіт завантаженості кімнат (офіс-менеджер / адміністратор)
+            parameters:
+                - name: from
+                  in: query
+                  required: false
+                  schema: { type: string, format: date-time }
+                - name: to
+                  in: query
+                  required: false
+                  schema: { type: string, format: date-time }
+            responses:
+                "200":
+                    description: Звіт завантаженості
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status: { type: string }
+                                    count: { type: integer }
+                                    from: { type: string, format: date-time, nullable: true }
+                                    to: { type: string, format: date-time, nullable: true }
+                                    rooms:
+                                        type: array
+                                        items: { $ref: "#/components/schemas/RoomUtilization" }
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+            security: [{ bearerAuth: [] }]
+
 components:
     securitySchemes:
         bearerAuth:
@@ -779,3 +989,27 @@ components:
                 workStart: { type: string, example: "08:00" }
                 workEnd: { type: string, example: "20:00" }
                 maxBookingHours: { type: integer, example: 4 }
+
+        UserForManagement:
+            type: object
+            properties:
+                id: { type: integer }
+                name: { type: string }
+                email: { type: string, format: email }
+                role: { type: string, enum: [employee, office_manager, admin] }
+                department:
+                    type: object
+                    properties:
+                        name: { type: string }
+
+        RoomUtilization:
+            type: object
+            properties:
+                roomId: { type: integer }
+                roomName: { type: string }
+                capacity: { type: integer }
+                isBlocked: { type: boolean }
+                totalBookings: { type: integer }
+                busyMs: { type: integer }
+                freeMs: { type: integer }
+                utilizationPercent: { type: number, example: 25.5 }

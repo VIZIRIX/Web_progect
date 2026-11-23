@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Кабінет офіс-менеджера</title>
+        <link rel="stylesheet" href="../src/styles/shared.css" />
+        <link rel="stylesheet" href="../src/styles/manager.css" />
+    </head>
+    <body>
+        <main class="manager-page">
+            <header class="page-header">
+                <a href="/calendar/booking.html" class="back-button">← К календарю</a>
+                <h1>Кабінет офіс-менеджера</h1>
+                <a href="/admin/admin.html" class="admin-link" id="admin-link" hidden>Адміністрування</a>
+            </header>
+
+            <!-- Кімнати: створення, редагування місткості/обладнання, блокування -->
+            <section class="manager-section">
+                <div class="section-head">
+                    <h2>Кімнати</h2>
+                    <div class="list-controls">
+                        <input type="search" id="rooms-search" placeholder="Пошук комнати по названию" />
+                    </div>
+                </div>
+                <div id="rooms-list" class="room-cards"></div>
+                <div id="rooms-status" class="status-message"></div>
+
+                <form id="room-create-form" class="room-create-form">
+                    <div class="form-grid">
+                        <label class="form-group">
+                            <input type="text" id="room-create-name" placeholder="Название комнаты" required />
+                        </label>
+                        <label class="form-group">
+                            <input
+                                type="number"
+                                id="room-create-capacity"
+                                min="1"
+                                placeholder="Вмісткість"
+                                required
+                            />
+                        </label>
+                    </div>
+                    <h3>Обладнання</h3>
+                    <div id="room-create-equipment" class="equipment-list"></div>
+                    <button type="submit" class="primary-button">Створити кімнату</button>
+                </form>
+            </section>
+
+            <!-- Звіт завантаженості кімнат -->
+            <section class="manager-section">
+                <div class="section-head">
+                    <h2>Звіт завантаженості кімнат</h2>
+                    <div class="list-controls">
+                        <label>
+                            Період
+                            <select id="period-select">
+                                <option value="month" selected>Місяць</option>
+                                <option value="week">Тиждень</option>
+                                <option value="quarter">Квартал</option>
+                                <option value="year">Рік</option>
+                            </select>
+                        </label>
+                        <button type="button" id="report-refresh" class="primary-button">Обновить</button>
+                        <input type="search" id="report-search" placeholder="Пошук комнати по названию" />
+                    </div>
+                </div>
+                <table class="manager-table">
+                    <thead>
+                        <tr>
+                            <th>Кімната</th>
+                            <th>Вмісткість</th>
+                            <th>Зайнятий час</th>
+                            <th>Вільний час</th>
+                            <th>Завантаження</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="utilization-body"></tbody>
+                </table>
+                <div id="utilization-note" class="status-message"></div>
+            </section>
+        </main>
+        <script type="module" src="../src/app/manager/manager.js"></script>
+    </body>
+</html>
